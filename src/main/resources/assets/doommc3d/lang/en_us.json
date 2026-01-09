@@ -1,0 +1,12 @@
+{
+  "doommc3d.command.doomgen.description": "Generate a DOOM map at your current location.",
+  "item.doommc3d.doom_pistol": "DOOM Pistol",
+  "item.doommc3d.doom_shotgun": "Shotgun",
+  "item.doommc3d.doom_chaingun": "Chaingun",
+  "item.doommc3d.doom_rocket_launcher": "Rocket Launcher",
+  "item.doommc3d.doom_plasma_rifle": "Plasma Rifle",
+  "item.doommc3d.doom_bfg": "BFG9000",
+  "item.doommc3d.doom_key_red": "Red Keycard",
+  "item.doommc3d.doom_key_yellow": "Yellow Keycard",
+  "item.doommc3d.doom_key_blue": "Blue Keycard"
+}

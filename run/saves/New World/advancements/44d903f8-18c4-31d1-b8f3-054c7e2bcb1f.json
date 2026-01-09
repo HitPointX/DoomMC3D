@@ -1,0 +1,58 @@
+{
+  "minecraft:recipes/decorations/crafting_table": {
+    "criteria": {
+      "unlock_right_away": "2026-01-08 00:09:47 -0800"
+    },
+    "done": true
+  },
+  "minecraft:adventure/kill_all_mobs": {
+    "criteria": {
+      "minecraft:pillager": "2026-01-08 00:22:21 -0800",
+      "minecraft:blaze": "2026-01-08 00:17:16 -0800",
+      "minecraft:zoglin": "2026-01-08 00:17:11 -0800",
+      "minecraft:vex": "2026-01-08 00:15:57 -0800",
+      "minecraft:husk": "2026-01-08 00:21:41 -0800",
+      "minecraft:hoglin": "2026-01-08 00:18:14 -0800"
+    },
+    "done": false
+  },
+  "minecraft:recipes/decorations/lantern": {
+    "criteria": {
+      "has_iron_nugget": "2026-01-08 00:22:02 -0800"
+    },
+    "done": true
+  },
+  "minecraft:recipes/decorations/iron_chain": {
+    "criteria": {
+      "has_iron_nugget": "2026-01-08 00:22:02 -0800"
+    },
+    "done": true
+  },
+  "minecraft:adventure/root": {
+    "criteria": {
+      "killed_something": "2026-01-08 00:15:57 -0800"
+    },
+    "done": true
+  },
+  "minecraft:adventure/kill_a_mob": {
+    "criteria": {
+      "minecraft:vex": "2026-01-08 00:15:57 -0800"
+    },
+    "done": true
+  },
+  "minecraft:adventure/adventuring_time": {
+    "criteria": {
+      "minecraft:dark_forest": "2026-01-08 00:09:47 -0800",
+      "minecraft:river": "2026-01-08 00:14:58 -0800",
+      "minecraft:birch_forest": "2026-01-08 00:12:07 -0800"
+    },
+    "done": false
+  },
+  "minecraft:recipes/misc/iron_ingot_from_nuggets": {
+    "criteria": {
+      "has_iron_nugget": "2026-01-08 00:22:02 -0800"
+    },
+    "done": true
+  },
+  "DataVersion": 4671
+}

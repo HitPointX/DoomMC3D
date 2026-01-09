@@ -1,0 +1,34 @@
+{
+  "stats": {
+    "minecraft:killed": {
+      "minecraft:pillager": 1,
+      "minecraft:husk": 5,
+      "minecraft:blaze": 3
+    },
+    "minecraft:custom": {
+      "minecraft:sprint_one_cm": 53402,
+      "minecraft:time_since_rest": 2694,
+      "minecraft:walk_one_cm": 23121,
+      "minecraft:total_world_time": 7354,
+      "minecraft:leave_game": 1,
+      "minecraft:fly_one_cm": 9368,
+      "minecraft:mob_kills": 9,
+      "minecraft:damage_taken": 3499,
+      "minecraft:play_time": 5203,
+      "minecraft:deaths": 2,
+      "minecraft:jump": 52,
+      "minecraft:time_since_death": 2666
+    },
+    "minecraft:picked_up": {
+      "minecraft:iron_nugget": 18,
+      "minecraft:tnt": 1
+    },
+    "minecraft:mined": {
+      "minecraft:tnt": 1
+    },
+    "minecraft:killed_by": {
+      "minecraft:husk": 2
+    }
+  },
+  "DataVersion": 4671
+}

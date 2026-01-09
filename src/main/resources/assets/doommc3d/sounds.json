@@ -1,0 +1,173 @@
+{
+  "pistol": {
+    "sounds": [
+      "doommc3d:pistol"
+    ],
+    "subtitle": "Pistol fires"
+  },
+  "pistol_rapid": {
+    "sounds": [
+      "doommc3d:pistol"
+    ],
+    "subtitle": "Chaingun fires"
+  },
+  "shotgn": {
+    "sounds": [
+      "doommc3d:shotgn"
+    ],
+    "subtitle": "Shotgun fires"
+  },
+  "rlaunc": {
+    "sounds": [
+      "doommc3d:rlaunc"
+    ],
+    "subtitle": "Rocket launches"
+  },
+  "plasma": {
+    "sounds": [
+      "doommc3d:plasma"
+    ],
+    "subtitle": "Plasma fires"
+  },
+  "bfg": {
+    "sounds": [
+      "doommc3d:bfg"
+    ],
+    "subtitle": "BFG fires"
+  },
+  "posit1": {
+    "sounds": [
+      "doommc3d:posit1"
+    ],
+    "subtitle": "Zombieman alert"
+  },
+  "posit2": {
+    "sounds": [
+      "doommc3d:posit2"
+    ],
+    "subtitle": "Shotgun Guy alert"
+  },
+  "popain": {
+    "sounds": [
+      "doommc3d:popain"
+    ]
+  },
+  "shotgunguy_pain": {
+    "sounds": [
+      "doommc3d:popain"
+    ]
+  },
+  "imp_pain": {
+    "sounds": [
+      "doommc3d:popain"
+    ]
+  },
+  "podth1": {
+    "sounds": [
+      "doommc3d:podth1"
+    ]
+  },
+  "podth2": {
+    "sounds": [
+      "doommc3d:podth2"
+    ]
+  },
+  "zombieman_attack": {
+    "sounds": [
+      "doommc3d:pistol"
+    ]
+  },
+  "shotgunguy_attack": {
+    "sounds": [
+      "doommc3d:shotgn"
+    ]
+  },
+  "bgsit1": {
+    "sounds": [
+      "doommc3d:bgsit1"
+    ],
+    "subtitle": "Imp screeches"
+  },
+  "bgdth1": {
+    "sounds": [
+      "doommc3d:bgdth1"
+    ]
+  },
+  "firsht": {
+    "sounds": [
+      "doommc3d:firsht"
+    ]
+  },
+  "sgtsit": {
+    "sounds": [
+      "doommc3d:sgtsit"
+    ],
+    "subtitle": "Demon roars"
+  },
+  "dmpain": {
+    "sounds": [
+      "doommc3d:dmpain"
+    ]
+  },
+  "cacodemon_pain": {
+    "sounds": [
+      "doommc3d:dmpain"
+    ]
+  },
+  "sgtdth": {
+    "sounds": [
+      "doommc3d:sgtdth"
+    ]
+  },
+  "sgtatk": {
+    "sounds": [
+      "doommc3d:sgtatk"
+    ]
+  },
+  "cacsit": {
+    "sounds": [
+      "doommc3d:cacsit"
+    ],
+    "subtitle": "Cacodemon wails"
+  },
+  "cacdth": {
+    "sounds": [
+      "doommc3d:cacdth"
+    ]
+  },
+  "cacodemon_attack": {
+    "sounds": [
+      "doommc3d:firsht"
+    ]
+  },
+  "barexp": {
+    "sounds": [
+      "doommc3d:barexp"
+    ],
+    "subtitle": "Barrel explodes"
+  },
+  "doropn": {
+    "sounds": [
+      "doommc3d:doropn"
+    ],
+    "subtitle": "Door opens"
+  },
+  "dorcls": {
+    "sounds": [
+      "doommc3d:dorcls"
+    ],
+    "subtitle": "Door closes"
+  },
+  "swtchn": {
+    "sounds": [
+      "doommc3d:swtchn"
+    ],
+    "subtitle": "Switch activated"
+  },
+  "stnmov": {
+    "sounds": [
+      "doommc3d:stnmov"
+    ],
+    "subtitle": "Platform moves"
+  }
+}

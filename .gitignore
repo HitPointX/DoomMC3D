@@ -1,0 +1,27 @@
+# Builds
+build/
+bin/
+obj/
+dist/
+out/
+target/
+
+# Node
+node_modules/
+
+# Python
+__pycache__/
+*.pyc
+
+# IDE/editor
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+
+# Logs
+*.log
+
+# Misc cache
+.cache/

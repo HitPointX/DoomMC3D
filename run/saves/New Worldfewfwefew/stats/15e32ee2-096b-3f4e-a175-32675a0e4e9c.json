@@ -1,0 +1,31 @@
+{
+  "stats": {
+    "minecraft:killed": {
+      "minecraft:husk": 2,
+      "minecraft:sheep": 1
+    },
+    "minecraft:custom": {
+      "minecraft:sprint_one_cm": 1614,
+      "minecraft:time_since_rest": 3771,
+      "minecraft:walk_one_cm": 55110,
+      "minecraft:total_world_time": 6448,
+      "minecraft:leave_game": 1,
+      "minecraft:fly_one_cm": 124,
+      "minecraft:mob_kills": 3,
+      "minecraft:damage_taken": 1214,
+      "minecraft:play_time": 3771,
+      "minecraft:jump": 31,
+      "minecraft:time_since_death": 3771
+    },
+    "minecraft:picked_up": {
+      "minecraft:leaf_litter": 435,
+      "minecraft:firefly_bush": 1,
+      "minecraft:brown_wool": 1,
+      "minecraft:moss_carpet": 2,
+      "minecraft:iron_nugget": 12,
+      "minecraft:wheat_seeds": 2,
+      "minecraft:mutton": 2
+    }
+  },
+  "DataVersion": 4671
+}

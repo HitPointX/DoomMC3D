@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "doommc3d",
+  "version": "0.1.0",
+  "name": "DoomMC3D",
+  "description": "True 3D DOOM world mapping inside Minecraft",
+  "authors": ["HitPoint"],
+  "contact": {},
+  "license": "MIT",
+  "environment": "client",
+  "entrypoints": {
+    "main": ["com.hitpo.doommc3d.DoomMC3D"],
+    "client": ["com.hitpo.doommc3d.client.DoomMC3DClient"]
+  },
+  "mixins": [
+    "doommc3d.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.18.0",
+    "fabric": "*",
+    "minecraft": "1.21.11"
+  }
+}
