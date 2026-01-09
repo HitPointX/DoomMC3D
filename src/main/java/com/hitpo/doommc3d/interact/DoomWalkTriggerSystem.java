@@ -54,7 +54,7 @@ public final class DoomWalkTriggerSystem {
             }
             COOLDOWN_UNTIL_TICK.put(player.getUuid(), now + Math.max(0, info.cooldownTicks()));
 
-            execute(world, player, info);
+            execute(world, player, info, under);
 
             if (info.once()) {
                 DoomWalkTriggerRegistry.markGroupActivated(world, trigger.groupId());
@@ -62,9 +62,9 @@ public final class DoomWalkTriggerSystem {
         }
     }
 
-    private static void execute(ServerWorld world, ServerPlayerEntity player, DoomTriggerInfo trigger) {
+    private static void execute(ServerWorld world, ServerPlayerEntity player, DoomTriggerInfo trigger, BlockPos triggerPos) {
         if (trigger.action() instanceof DoomTriggerAction.ActivateLiftByTag a) {
-            DoomLiftSystem.activateByTag(world, player, a.tag());
+            DoomLiftSystem.activateByTag(world, player, a.tag(), triggerPos);
             return;
         }
 

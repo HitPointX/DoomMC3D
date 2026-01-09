@@ -161,6 +161,94 @@ public final class DoomLiftSystem {
         tagMap.put(tag, now);
     }
 
+    /**
+     * Activate by tag with an explicit trigger position. Prefer matching lifts by the trigger XZ
+     * (linedef position) rather than the player's current position.
+     */
+    public static void activateByTag(ServerWorld world, ServerPlayerEntity activator, int tag, BlockPos triggerPos) {
+        if (tag == 0) return;
+
+        DebugLogger.debug("DoomLiftSystem.activate", () -> "[DoomMC3D] activateByTag called with triggerPos: tag=" + tag + " trigger=" + triggerPos);
+
+        Map<Integer, List<Lift>> byTag = LIFTS_BY_TAG.get(world.getRegistryKey());
+        if (byTag == null) {
+            DebugLogger.debug("DoomLiftSystem.activate", () -> "[DoomMC3D] ERROR: No lifts registered for this world!");
+            return;
+        }
+        List<Lift> lifts = byTag.get(tag);
+        if (lifts == null || lifts.isEmpty()) {
+            DebugLogger.debug("DoomLiftSystem.activate",
+                () -> "[DoomMC3D] ERROR: No lift found for tag " + tag + ". Available tags: " + byTag.keySet());
+            return;
+        }
+
+        // Lightweight per-player cooldown so a single press doesn't spam-activate a tag.
+        long now = world.getTime();
+        long until = COOLDOWN_UNTIL_TICK.getOrDefault(activator.getUuid(), 0L);
+        if (now < until) {
+            DebugLogger.debugThrottled("DoomLiftSystem.activate.cooldown", 1000, () -> "[DoomMC3D] Lift activation on cooldown");
+            return;
+        }
+        COOLDOWN_UNTIL_TICK.put(activator.getUuid(), now + 10);
+
+        // Per-tag debounce to avoid repeated activations from the same trigger/group.
+        Map<Integer, Long> tagMap = TAG_LAST_ACTIVATED.computeIfAbsent(world.getRegistryKey(), k -> new HashMap<>());
+        long tagLast = tagMap.getOrDefault(tag, 0L);
+        if (now - tagLast < 20) {
+            DebugLogger.debugThrottled("DoomLiftSystem.activate.tagCooldown", 1000,
+                () -> "[DoomMC3D] Lift tag " + tag + " activation debounced (last=" + tagLast + ")");
+            return;
+        }
+
+        int triggerX = triggerPos.getX();
+        int triggerZ = triggerPos.getZ();
+        DebugLogger.debug("DoomLiftSystem.activate.trigger", () -> "[LiftDebug] triggerPos=" + triggerPos + " triggerXZ=(" + triggerX + "," + triggerZ + ")");
+
+        boolean anyMatched = false;
+        for (Lift lift : lifts) {
+            int minDx = Integer.MAX_VALUE, maxDx = Integer.MIN_VALUE;
+            int minDz = Integer.MAX_VALUE, maxDz = Integer.MIN_VALUE;
+            for (FloorCell cell : lift.floor) {
+                minDx = Math.min(minDx, cell.dx);
+                maxDx = Math.max(maxDx, cell.dx);
+                minDz = Math.min(minDz, cell.dz);
+                maxDz = Math.max(maxDz, cell.dz);
+            }
+            int minX = lift.buildOrigin.getX() + minDx;
+            int maxX = lift.buildOrigin.getX() + maxDx + 1;
+            int minZ = lift.buildOrigin.getZ() + minDz;
+            int maxZ = lift.buildOrigin.getZ() + maxDz + 1;
+
+            DebugLogger.debug("DoomLiftSystem.activate.debug", () -> "[LiftDebug] baseY=" + lift.buildOrigin.getY()
+                + " currentY=" + lift.currentY
+                + " topY=" + lift.topY
+                + " bottomY=" + lift.bottomY
+                + " bboxX=[" + minX + "," + maxX + "] bboxZ=[" + minZ + "," + maxZ + "]");
+
+            if (triggerX >= minX && triggerX <= maxX && triggerZ >= minZ && triggerZ <= maxZ) {
+                double playerFloorWorldY = activator.getBlockPos().getY() + 1.0;
+                double currentWorldY = lift.worldY(lift.currentY);
+                double offset = playerFloorWorldY - currentWorldY;
+                lift.setAnchorOffset(offset);
+                DebugLogger.debug("DoomLiftSystem.activate.anchor", () -> "[LiftDebug] anchoring lift to trigger: playerFloorWorldY=" + playerFloorWorldY + " currentWorldY=" + currentWorldY + " offset=" + offset);
+                lift.activate(world);
+                anyMatched = true;
+            }
+        }
+
+        if (!anyMatched) {
+            for (Lift lift : lifts) {
+                double playerFloorWorldY = activator.getBlockPos().getY() + 1.0;
+                double currentWorldY = lift.worldY(lift.currentY);
+                double offset = playerFloorWorldY - currentWorldY;
+                lift.setAnchorOffset(offset);
+                DebugLogger.debug("DoomLiftSystem.activate.fallback", () -> "[LiftDebug] no matching lift for trigger; anchoring before activate: playerFloorWorldY=" + playerFloorWorldY + " baseY=" + lift.buildOrigin.getY() + " currentY=" + lift.currentY + " offset=" + offset);
+                lift.activate(world);
+            }
+        }
+        tagMap.put(tag, now);
+    }
+
     private static void tickWorld(ServerWorld world) {
         Map<Integer, List<Lift>> byTag = LIFTS_BY_TAG.get(world.getRegistryKey());
         if (byTag == null || byTag.isEmpty()) return;
@@ -358,7 +446,8 @@ public final class DoomLiftSystem {
                     waitUntilTick = now + waitTicks;
                     return;
                 }
-                if (step(world, currentY, currentY - 1)) {
+                // Move all the way to bottom in a single platform motion for visible lift behavior.
+                if (step(world, currentY, bottomY)) {
                     if (currentY <= bottomY) {
                         state = LiftState.WAITING;
                         waitUntilTick = now + waitTicks;
@@ -374,7 +463,8 @@ public final class DoomLiftSystem {
                     state = LiftState.IDLE;
                     return;
                 }
-                if (step(world, currentY, currentY + 1)) {
+                // Move up all the way to the top in a single motion.
+                if (step(world, currentY, topY)) {
                     // actual currentY update happens when platform entity completes
                 }
             }
