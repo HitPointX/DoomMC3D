@@ -45,3 +45,6 @@ run/server-resource-packs/
 
 # if you have other giant folders under run/
 run/.cache/
+
+.gradle/
+
