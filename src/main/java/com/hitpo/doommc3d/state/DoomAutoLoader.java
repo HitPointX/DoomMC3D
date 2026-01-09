@@ -28,7 +28,7 @@ public class DoomAutoLoader {
 
             // Prevent multiple simultaneous generations
             if (generatingWorlds.getOrDefault(world, false)) {
-                System.out.println("[DoomMC3D] Map generation already in progress, skipping auto-load for " + player.getName().getString());
+                com.hitpo.doommc3d.util.DebugLogger.debug("DoomAutoLoader", () -> "[DoomMC3D] Map generation already in progress, skipping auto-load for " + player.getName().getString());
                 return;
             }
 
@@ -46,7 +46,7 @@ public class DoomAutoLoader {
 
             // Only rebuild if needed
             if (!desiredMap.equalsIgnoreCase(currentMap)) {
-                System.out.println("[DoomMC3D] Auto-loading map: " + desiredMap + " for " + player.getName().getString());
+                com.hitpo.doommc3d.util.DebugLogger.debug("DoomAutoLoader", () -> "[DoomMC3D] Auto-loading map: " + desiredMap + " for " + player.getName().getString());
                 
                 generatingWorlds.put(world, true);
                 try {
@@ -56,8 +56,10 @@ public class DoomAutoLoader {
                     
                     state.setCurrentLoadedMap(desiredMap);
                 } catch (Exception e) {
-                    System.err.println("[DoomMC3D] Failed to auto-load map: " + e.getMessage());
-                    e.printStackTrace();
+                    com.hitpo.doommc3d.util.DebugLogger.debug("DoomAutoLoader.error", () -> {
+                        e.printStackTrace();
+                        return "[DoomMC3D] Failed to auto-load map: " + e.getMessage();
+                    });
                     // On failure, reset to e1m1
                     state.setLastMap("e1m1");
                     state.setCurrentLoadedMap("");
@@ -65,7 +67,7 @@ public class DoomAutoLoader {
                     generatingWorlds.put(world, false);
                 }
             } else {
-                System.out.println("[DoomMC3D] Map " + desiredMap + " already loaded for " + player.getName().getString());
+                com.hitpo.doommc3d.util.DebugLogger.debug("DoomAutoLoader", () -> "[DoomMC3D] Map " + desiredMap + " already loaded for " + player.getName().getString());
                 // Map already loaded, just give starting gear
                 giveStartingGear(player);
             }
@@ -77,8 +79,9 @@ public class DoomAutoLoader {
      */
     private static void giveStartingGear(ServerPlayerEntity player) {
         ItemStack pistol = new ItemStack(ModItems.DOOM_PISTOL);
-        if (!player.getInventory().contains(pistol)) {
+            if (!player.getInventory().contains(pistol)) {
             player.giveItemStack(pistol);
+            com.hitpo.doommc3d.util.DebugLogger.debug("DoomAutoLoader", () -> "[DoomMC3D] giveStartingGear: gave pistol to " + player.getName().getString());
         }
         
         // Set Doom health (100 HP)
@@ -101,6 +104,8 @@ public class DoomAutoLoader {
         for (int slot = 0; slot < 9; slot++) {
             if (player.getInventory().getStack(slot).isOf(ModItems.DOOM_PISTOL)) {
                 player.getInventory().setSelectedSlot(slot);
+                final String slotMsg = "[DoomMC3D] giveStartingGear: selected hotbar slot " + slot + " for " + player.getName().getString();
+                com.hitpo.doommc3d.util.DebugLogger.debug("DoomAutoLoader", () -> slotMsg);
                 break;
             }
         }

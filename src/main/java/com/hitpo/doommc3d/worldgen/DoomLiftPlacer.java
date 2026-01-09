@@ -342,7 +342,8 @@ public final class DoomLiftPlacer {
             DoomWalkTriggerRegistry.register(world, pos, new DoomWalkTriggerRegistry.WalkTrigger(groupId, info, false));
             cellCount++;
         }
-        System.out.println("[DoomMC3D] Registered walk lift trigger: tag=" + tag + " groupId=" + groupId + " once=" + once + " cells=" + cellCount + " floorY=" + floorY);
+        final String regMsg = "[DoomMC3D] Registered walk lift trigger: tag=" + tag + " groupId=" + groupId + " once=" + once + " cells=" + cellCount + " floorY=" + floorY;
+        com.hitpo.doommc3d.util.DebugLogger.debug("DoomLiftPlacer", () -> regMsg);
     }
 
     private static void placeUseSwitchTrigger(

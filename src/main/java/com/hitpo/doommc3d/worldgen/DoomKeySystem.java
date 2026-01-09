@@ -25,16 +25,20 @@ public final class DoomKeySystem {
     }
 
     private static void tryPickupKeys(ServerWorld world, ServerPlayerEntity player) {
-        Box box = player.getBoundingBox().expand(1.2, 1.0, 1.2);
+        // increase pickup radius to make keycards easier to collect
+        Box box = player.getBoundingBox().expand(1.5, 1.0, 1.5);
         var keys = world.getEntitiesByType(EntityType.ITEM_DISPLAY, box, entity -> entity.getCommandTags().contains("doommc3d_key"));
         if (keys.isEmpty()) {
             return;
         }
+        com.hitpo.doommc3d.util.DebugLogger.debug("DoomKeySystem.scan", () -> "[DoomKeySystem] found " + keys.size() + " key displays near " + player.getName().getString());
         for (DisplayEntity.ItemDisplayEntity key : keys) {
             if (!key.isAlive()) {
                 continue;
             }
-            if (key.squaredDistanceTo(player) > (1.2 * 1.2)) {
+            com.hitpo.doommc3d.util.DebugLogger.debug("DoomKeySystem.detail", () -> "[DoomKeySystem] display tags: " + key.getCommandTags());
+            com.hitpo.doommc3d.util.DebugLogger.debug("DoomKeySystem.detail", () -> "[DoomKeySystem] squaredDistanceTo player: " + key.squaredDistanceTo(player) + " playerY=" + player.getY() + " keyY=" + key.getY());
+            if (key.squaredDistanceTo(player) > (1.5 * 1.5)) {
                 continue;
             }
             if (key.getCommandTags().contains("doommc3d_key_red")) {
@@ -52,7 +56,8 @@ public final class DoomKeySystem {
     }
 
     private static void grant(ServerPlayerEntity player, String tag, String message) {
-        if (!player.getCommandTags().contains(tag)) {
+            if (!player.getCommandTags().contains(tag)) {
+            com.hitpo.doommc3d.util.DebugLogger.debug("DoomKeySystem.grant", () -> "[DoomKeySystem] granting tag=" + tag + " to player=" + player.getName().getString());
             player.addCommandTag(tag);
             player.sendMessage(Text.literal(message), false);
         }

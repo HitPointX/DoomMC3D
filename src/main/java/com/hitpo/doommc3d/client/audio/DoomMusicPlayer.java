@@ -20,13 +20,28 @@ public final class DoomMusicPlayer {
     public static void playForMap(String mapName) {
         String lump = DoomMusicNames.lumpForMap(mapName);
         if (lump == null) {
+            // No direct mapping found; we'll try to pick a reasonable fallback from the IWAD.
+            try {
+                WadFile wad = WadLoader.loadFirstIwad();
+                // Prefer any lump that starts with D_ (classic Doom music naming).
+                for (WadDirectoryEntry entry : wad.getDirectory()) {
+                    String name = entry.getName();
+                    if (name != null && name.toUpperCase(Locale.ROOT).startsWith("D_")) {
+                        com.hitpo.doommc3d.util.DebugLogger.debug("DoomMusicPlayer.fallback", () -> "[DoomMC3D] fallback music: using " + name + " for map " + mapName);
+                        playLump(wad, name);
+                        return;
+                    }
+                }
+            } catch (Exception e) {
+                com.hitpo.doommc3d.util.DebugLogger.debug("DoomMusicPlayer.error", () -> "[DoomMC3D] Failed to find fallback music for map " + mapName + ": " + e.getMessage());
+            }
             return;
         }
         try {
             WadFile wad = WadLoader.loadFirstIwad();
             playLump(wad, lump);
         } catch (Exception e) {
-            System.err.println("[DoomMC3D] Failed to start music for map " + mapName + ": " + e.getMessage());
+            com.hitpo.doommc3d.util.DebugLogger.debug("DoomMusicPlayer.error", () -> "[DoomMC3D] Failed to start music for map " + mapName + ": " + e.getMessage());
         }
     }
 
@@ -37,7 +52,7 @@ public final class DoomMusicPlayer {
         }
         WadDirectoryEntry entry = find(wad, key);
         if (entry == null) {
-            System.err.println("[DoomMC3D] Music lump not found: " + key);
+            com.hitpo.doommc3d.util.DebugLogger.debug("DoomMusicPlayer", () -> "[DoomMC3D] Music lump not found: " + key);
             return;
         }
         ByteBuffer data = wad.readLump(entry);
@@ -52,7 +67,7 @@ public final class DoomMusicPlayer {
         s.setLoopCount(Sequencer.LOOP_CONTINUOUSLY);
         s.start();
         currentLump = key;
-        System.out.println("[DoomMC3D] Now playing " + key);
+        com.hitpo.doommc3d.util.DebugLogger.debug("DoomMusicPlayer.nowplaying", () -> "[DoomMC3D] Now playing " + key);
     }
 
     public static void stop() {

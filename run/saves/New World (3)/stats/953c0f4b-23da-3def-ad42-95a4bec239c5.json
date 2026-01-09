@@ -1,0 +1,20 @@
+{
+  "stats": {
+    "minecraft:killed": {
+      "minecraft:husk": 4
+    },
+    "minecraft:custom": {
+      "minecraft:time_since_rest": 834,
+      "minecraft:walk_one_cm": 5793,
+      "minecraft:total_world_time": 962,
+      "minecraft:leave_game": 1,
+      "minecraft:fly_one_cm": 62,
+      "minecraft:mob_kills": 4,
+      "minecraft:damage_taken": 360,
+      "minecraft:play_time": 834,
+      "minecraft:jump": 1,
+      "minecraft:time_since_death": 834
+    }
+  },
+  "DataVersion": 4671
+}

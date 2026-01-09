@@ -36,11 +36,18 @@ public final class DoomTriggerInteractions {
             // If this is a lever handle triggers.
             if (state.isOf(Blocks.LEVER)) {
                 DoomTriggerInfo info = DoomTriggerRegistry.getUse(sw, pos);
+                com.hitpo.doommc3d.util.DebugLogger.debug("DoomTriggerInteractions.lever", () -> "[DoomMC3D] Lever used at " + pos + " state=" + state + " registered=" + (info != null));
                 if (info == null) {
+                    // Log nearby registered triggers for diagnosis
+                    try {
+                        var map = com.hitpo.doommc3d.interact.DoomTriggerRegistry.class
+                            .getDeclaredMethod("getUse", net.minecraft.server.world.ServerWorld.class, net.minecraft.util.math.BlockPos.class);
+                    } catch (Exception ignored) {
+                    }
                     return ActionResult.PASS;
                 }
 
-                System.out.println("[DoomMC3D] Lever activated at " + pos + " action: " + info.action());
+                com.hitpo.doommc3d.util.DebugLogger.debug("DoomTriggerInteractions.lever", () -> "[DoomMC3D] Lever activated at " + pos + " action: " + info.action());
 
                 int now = (int) sw.getTime();
                 int until = COOLDOWN_UNTIL_TICK.getOrDefault(sp.getUuid(), 0);
@@ -83,13 +90,24 @@ public final class DoomTriggerInteractions {
     }
 
     private static void execute(ServerWorld world, ServerPlayerEntity player, DoomTriggerInfo trigger) {
-        if (trigger.action() instanceof DoomTriggerAction.ExitNextMap) {
-            System.out.println("[DoomMC3D] ExitNextMap triggered!");
+            if (trigger.action() instanceof DoomTriggerAction.ExitNextMap) {
+            com.hitpo.doommc3d.util.DebugLogger.debug("DoomTriggerInteractions.exit", () -> "[DoomMC3D] ExitNextMap triggered!");
             DoomLevelState state = DoomLevelStateRegistry.get(world);
+            // Some code paths may have registered level state in the overworld instance.
+            if (state == null && world.getServer() != null) {
+                try {
+                    var ow = world.getServer().getOverworld();
+                    state = DoomLevelStateRegistry.get(ow);
+                        if (state != null) {
+                        com.hitpo.doommc3d.util.DebugLogger.debug("DoomTriggerInteractions.exit", () -> "[DoomMC3D] Fallback: found level state in overworld");
+                    }
+                } catch (Exception ignored) {
+                }
+            }
             String current = state == null ? null : state.mapName();
-            System.out.println("[DoomMC3D] Current map: " + current);
+            com.hitpo.doommc3d.util.DebugLogger.debug("DoomTriggerInteractions.exit", () -> "[DoomMC3D] Current map: " + current);
             String next = DoomMapProgression.nextMapName(current);
-            System.out.println("[DoomMC3D] Next map: " + next);
+            com.hitpo.doommc3d.util.DebugLogger.debug("DoomTriggerInteractions.exit", () -> "[DoomMC3D] Next map: " + next);
             if (next == null) {
                 player.sendMessage(Text.literal("[DoomMC3D] Exit triggered, but next map is unknown (current=" + current + ")"), false);
                 return;

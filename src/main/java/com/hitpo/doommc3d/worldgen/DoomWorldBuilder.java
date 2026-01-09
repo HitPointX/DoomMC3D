@@ -29,16 +29,24 @@ public class DoomWorldBuilder {
     }
 
     public static void build(ServerWorld world, ServerPlayerEntity player, String mapName, String wadOverride) {
-        System.out.println("[DoomMC3D] Building map: " + mapName);
-        var buildOrigin = player.getBlockPos();
+        com.hitpo.doommc3d.util.DebugLogger.debug("DoomWorldBuilder.build", () -> "[DoomMC3D] Building map: " + mapName);
+        var playerPos = player.getBlockPos();
+        // Apply a global absolute Y offset so Doom levels are generated high above terrain to avoid clipping.
+        // Use the BASE_Y value as an absolute world Y (not relative to the player's current Y).
+        int baseY = com.hitpo.doommc3d.interact.DoomGenConfig.getBaseY();
+        int maxHeight = com.hitpo.doommc3d.interact.DoomGenConfig.getMaxWorldHeight();
+        int targetY = baseY;
+        // If BASE_Y is unrealistically high, clamp to a safe room below max height
+        if (targetY > maxHeight - 16) targetY = Math.max(16, maxHeight - 16);
+        var buildOrigin = playerPos.withY(targetY);
         BlockPlacer placer = new BlockPlacer(world, buildOrigin);
         try {
             WadFile wad = WadRepository.getOrLoad(wadOverride);
-            System.out.println("[DoomMC3D] WAD search dirs: " + WadLoader.getWadsDirectories());
-            System.out.println("[DoomMC3D] Using WAD: " + wad.getSource());
+            com.hitpo.doommc3d.util.DebugLogger.debug("DoomWorldBuilder.wad", () -> "[DoomMC3D] WAD search dirs: " + WadLoader.getWadsDirectories());
+            com.hitpo.doommc3d.util.DebugLogger.debug("DoomWorldBuilder.wad", () -> "[DoomMC3D] Using WAD: " + wad.getSource());
             
             DoomMap doomMap = DoomMapParser.parse(wad, mapName);
-            System.out.println("[DoomMC3D] Map '" + doomMap.name() + "' loaded with " + doomMap.vertices().length + " vertices");
+            com.hitpo.doommc3d.util.DebugLogger.debug("DoomWorldBuilder.map", () -> "[DoomMC3D] Map '" + doomMap.name() + "' loaded with " + doomMap.vertices().length + " vertices");
             logTextureUsage(doomMap);
             player.sendMessage(Text.literal("[DoomMC3D] Rendering " + mapName + " from " + wad.getSource().getFileName()), false);
             DoomOrigin origin = DoomOrigin.fromMap(doomMap);
@@ -54,10 +62,39 @@ public class DoomWorldBuilder {
             DoomLevelBoundsRegistry.set(world, DoomSpawnCleanup.computeBounds(world, doomMap, origin, buildOrigin));
             int cleared = DoomSpawnCleanup.clearSpawnedEntities(world, doomMap, origin, buildOrigin);
             if (cleared > 0) {
-                System.out.println("[DoomMC3D] Cleared " + cleared + " previously spawned entities");
+                com.hitpo.doommc3d.util.DebugLogger.debug("DoomWorldBuilder.clean", () -> "[DoomMC3D] Cleared " + cleared + " previously spawned entities");
             }
             SectorRasterizer rasterizer = new SectorRasterizer();
             rasterizer.rasterize(doomMap, placer, origin);
+            // Place a solid roof above the generated map to block skylight leaks
+            try {
+                var bounds = DoomLevelBoundsRegistry.get(world);
+                if (bounds != null) {
+                    // Compute max ceiling used in map (block-space relative to origin)
+                    int maxCeilRel = Integer.MIN_VALUE;
+                    for (com.hitpo.doommc3d.doommap.Sector s : doomMap.sectors()) {
+                        int c = com.hitpo.doommc3d.convert.DoomToMCScale.toBlock(s.ceilingHeight());
+                        maxCeilRel = Math.max(maxCeilRel, c);
+                    }
+                    if (maxCeilRel != Integer.MIN_VALUE) {
+                        int roofPadding = 3;
+                        int roofWorldY = buildOrigin.getY() + maxCeilRel + roofPadding;
+                        int minX = (int) Math.floor(bounds.minX);
+                        int maxX = (int) Math.ceil(bounds.maxX);
+                        int minZ = (int) Math.floor(bounds.minZ);
+                        int maxZ = (int) Math.ceil(bounds.maxZ);
+                        for (int wx = minX; wx <= maxX; wx++) {
+                            for (int wz = minZ; wz <= maxZ; wz++) {
+                                int relX = wx - buildOrigin.getX();
+                                int relZ = wz - buildOrigin.getZ();
+                                int relY = roofWorldY - buildOrigin.getY();
+                                placer.placeBlock(relX, relY, relZ, net.minecraft.block.Blocks.POLISHED_DEEPSLATE.getDefaultState());
+                            }
+                        }
+                    }
+                }
+            } catch (Exception ignored) {
+            }
             int thingsPlaced = ThingPlacer.place(world, doomMap, origin, buildOrigin);
             int telepadsPlaced = DoomTeleporterPadPlacer.placePads(world, doomMap, origin, buildOrigin);
             List<com.hitpo.doommc3d.interact.DoomSecretTrigger> secrets = DoomSecretExtractor.extract(doomMap, origin, buildOrigin);
@@ -77,15 +114,18 @@ public class DoomWorldBuilder {
             ServerPlayNetworking.send(player, new PlayMusicPayload(mapName));
 
             DoomLevelStateRegistry.set(world, new DoomLevelState(mapName, wad.getSource().getFileName().toString(), buildOrigin.toImmutable()));
-            System.out.println("[DoomMC3D] Placed " + thingsPlaced + " THINGS");
-            System.out.println("[DoomMC3D] Placed " + telepadsPlaced + " teleporter pads");
-            System.out.println("[DoomMC3D] Registered " + secrets.size() + " secrets");
-            System.out.println("[DoomMC3D] Registered " + teleporters.size() + " teleporters");
-            System.out.println("[DoomMC3D] Spawned " + spawns.enemiesSpawned() + " enemies and " + spawns.bossesSpawned() + " bosses");
+            com.hitpo.doommc3d.util.DebugLogger.debug("DoomWorldBuilder.place", () -> "[DoomMC3D] Placed " + thingsPlaced + " THINGS");
+            com.hitpo.doommc3d.util.DebugLogger.debug("DoomWorldBuilder.place", () -> "[DoomMC3D] Placed " + telepadsPlaced + " teleporter pads");
+            com.hitpo.doommc3d.util.DebugLogger.debug("DoomWorldBuilder.place", () -> "[DoomMC3D] Registered " + secrets.size() + " secrets");
+            com.hitpo.doommc3d.util.DebugLogger.debug("DoomWorldBuilder.place", () -> "[DoomMC3D] Registered " + teleporters.size() + " teleporters");
+            com.hitpo.doommc3d.util.DebugLogger.debug("DoomWorldBuilder.place", () -> "[DoomMC3D] Spawned " + spawns.enemiesSpawned() + " enemies and " + spawns.bossesSpawned() + " bosses");
         } catch (IOException | IllegalArgumentException e) {
             String message = "[DoomMC3D] Failed to load map (" + e.getMessage() + ")";
             player.sendMessage(Text.literal(message), false);
+            com.hitpo.doommc3d.util.DebugLogger.debug("DoomWorldBuilder.error", () -> {
             e.printStackTrace();
+            return "[DoomMC3D] Failed to load map (" + e.getMessage() + ")";
+            });
         }
     }
 
@@ -115,25 +155,25 @@ public class DoomWorldBuilder {
         }
 
         // Log top 10 of each
-        System.out.println("[DoomMC3D] === TEXTURE USAGE TOP 10 ===");
-        System.out.println("[DoomMC3D] Floor textures:");
+        com.hitpo.doommc3d.util.DebugLogger.debug("DoomWorldBuilder.textures", () -> "[DoomMC3D] === TEXTURE USAGE TOP 10 ===");
+        com.hitpo.doommc3d.util.DebugLogger.debug("DoomWorldBuilder.textures", () -> "[DoomMC3D] Floor textures:");
         logTop10(floorTextures);
-        System.out.println("[DoomMC3D] Ceiling textures:");
+        com.hitpo.doommc3d.util.DebugLogger.debug("DoomWorldBuilder.textures", () -> "[DoomMC3D] Ceiling textures:");
         logTop10(ceilingTextures);
-        System.out.println("[DoomMC3D] Upper textures:");
+        com.hitpo.doommc3d.util.DebugLogger.debug("DoomWorldBuilder.textures", () -> "[DoomMC3D] Upper textures:");
         logTop10(upperTextures);
-        System.out.println("[DoomMC3D] Lower textures:");
+        com.hitpo.doommc3d.util.DebugLogger.debug("DoomWorldBuilder.textures", () -> "[DoomMC3D] Lower textures:");
         logTop10(lowerTextures);
-        System.out.println("[DoomMC3D] Mid textures:");
+        com.hitpo.doommc3d.util.DebugLogger.debug("DoomWorldBuilder.textures", () -> "[DoomMC3D] Mid textures:");
         logTop10(midTextures);
-        System.out.println("[DoomMC3D] === END TEXTURE USAGE ===");
+        com.hitpo.doommc3d.util.DebugLogger.debug("DoomWorldBuilder.textures", () -> "[DoomMC3D] === END TEXTURE USAGE ===");
     }
 
     private static void logTop10(java.util.Map<String, Integer> textures) {
         textures.entrySet().stream()
             .sorted((a, b) -> b.getValue().compareTo(a.getValue()))
             .limit(10)
-            .forEach(e -> System.out.println("[DoomMC3D]   " + e.getKey() + ": " + e.getValue()));
+            .forEach(e -> com.hitpo.doommc3d.util.DebugLogger.debug("DoomWorldBuilder.textures", () -> "[DoomMC3D]   " + e.getKey() + ": " + e.getValue()));
     }
 
     private static String normalizeTextureName(String texture) {

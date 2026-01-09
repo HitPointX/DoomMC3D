@@ -15,6 +15,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import com.hitpo.doommc3d.client.lighting.ClientExtralightManager;
 
 @Mixin(MinecraftClient.class)
 public abstract class MinecraftClientMixin {
@@ -26,6 +27,11 @@ public abstract class MinecraftClientMixin {
             || stack.isOf(ModItems.DOOM_ROCKET_LAUNCHER)
             || stack.isOf(ModItems.DOOM_PLASMA_RIFLE)
             || stack.isOf(ModItems.DOOM_BFG);
+    }
+
+    @Inject(method = "tick", at = @At("TAIL"))
+    private void doommc3d$tick(CallbackInfo ci) {
+        ClientExtralightManager.tick();
     }
 
     @Inject(method = "doAttack", at = @At("HEAD"), cancellable = true)
@@ -57,13 +63,21 @@ public abstract class MinecraftClientMixin {
             return;
         }
 
-        // Doom UX: right-click should be able to "use" doors even while a weapon is equipped.
+        // Doom UX: right-click should be able to "use" doors and levers even while a weapon is equipped.
         HitResult hit = client.crosshairTarget;
         if (hit instanceof BlockHitResult bhr) {
-            if (client.world != null && client.world.getBlockState(bhr.getBlockPos()).isOf(Blocks.IRON_DOOR)) {
-                ClientPlayNetworking.send(new UseDoomDoorPayload(bhr.getBlockPos()));
-                ci.cancel();
-                return;
+            if (client.world != null) {
+                var state = client.world.getBlockState(bhr.getBlockPos());
+                if (state.isOf(Blocks.IRON_DOOR)) {
+                    ClientPlayNetworking.send(new UseDoomDoorPayload(bhr.getBlockPos()));
+                    ci.cancel();
+                    return;
+                }
+                if (state.isOf(Blocks.LEVER)) {
+                    ClientPlayNetworking.send(new com.hitpo.doommc3d.net.UseDoomTriggerPayload(bhr.getBlockPos()));
+                    ci.cancel();
+                    return;
+                }
             }
         }
 

@@ -1,50 +1,50 @@
-/doomboss cyberdemon
-/doomgen e1m2
-/doomgen e1m3
-/doomgen e1m4
-/doomgen e1m5
-/doomboss
-/doomspawn cacodemon
-/doomspawn cacodemon 2
-/doomspawn cacodemon
-/doomspawn cyberdemon
-/doomspawn caco
-/doomgen e1m6
-/doomgen e1m1
-/doomgen e1m7
-/doomgen e1m8
-/doomgen e1m9
-/doomgen e1m1
-/doomgen e1m2
-/doomgen e1m5
-/doomgen e1m6
-/doomgen e1m8
-/doomgen e3m1
-/doomgen e3m2
-/doomgen e1m1
-/doomgen e1m2
-/doomgen e1m1
-/doomgen e1m2
-/doomgen e1m1
-/doomgen e1m7
-/doomgen e2m2
-/doomgen e2m3
-/doomgen e2m5
-/doomgen e2m6
-/doomgen e2m7
-/doomgen e2m8
-/doomgen e3m4
-/doomgen e3m5
-/doomgiveall
-/doomgen e2m5
-/doomgen e2m6
-/doomgen e2m7
-/doomgiveall
-/doomgen e3m3
-/doomgen e1m4
-/doomgiveall
-/doomgen e1m7
 /doomgiveall
 /doomgen e1m2
-/doomgen e1m5
 /doomgiveall
+/doomgen e1m2
+/doomgiveall
+/doomgen e1m2
+/doomgiveall
+/doomgen e1m2
+/doomgiveall
+/doomgen e1m2
+/doomgiveall
+/doomgen e1m2
+/doomgiveall
+/doomgen e1m2
+/doomgiveall
+/doomgen e1m2
+/doomgiveall
+/doomgen e1m2
+/doomgiveall
+/doomgen e1m2
+/doomgiveall
+/doomgen e1m2
+/doomgiveall
+/doomgen e1m2
+/doomgiveall
+/doomgen e1m2
+/doomgiveall
+/doomgen e1m2
+/doomgiveall
+/doomgen e1m2
+/doomgiveall
+/doomgen e1m2
+/doomgiveall
+/doomgen e1m2
+/doomgiveall
+/doomgen e1m2
+/doomgiveall
+/doomgen e1m2
+/doomgiveall
+/doomgen e1m2
+/doomgiveall
+/doomgen e1m2
+/doomgiveall
+/doomgen e1m2
+/doomgiveall
+/doomgen e1m2
+/doomgiveall
+/doomgen e1m2
+/doomgiveall
+/doomgen e1m2

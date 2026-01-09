@@ -8,6 +8,7 @@ import com.hitpo.doommc3d.wad.WadFile;
 import com.hitpo.doommc3d.wad.WadRepository;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.gui.DrawContext;
@@ -20,12 +21,86 @@ public final class DoomHudRenderer implements HudRenderCallback {
     private static final int HUD_HEIGHT = 40;
     private static final DoomWadSpriteCache SPRITES = new DoomWadSpriteCache();
     private static volatile WadFile cachedWad;
+    // Pickup display state (client-side)
+    private static volatile String pickupText = null;
+    private static volatile int pickupColor = 0xFFFFFFFF;
+    private static volatile int pickupTicksRemaining = 0;
+    // Smoothed effective light to reduce abrupt band flicker when crossing sector boundaries
+    private static double smoothedEffective = -1.0;
 
     @Override
     public void onHudRender(DrawContext drawContext, RenderTickCounter tickCounter) {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client.options.hudHidden || client.player == null) {
             return;
+        }
+
+        // Doom-style quantized fog overlay based on averaged block light + extralight
+        // Increase averaging to a 5x5 area to further smooth sector boundary differences.
+        BlockPos basePos = client.player.getBlockPos();
+        int sum = 0;
+        int count = 0;
+        final int R = 2; // radius -> (2*R+1)^2 samples (5x5)
+        for (int dx = -R; dx <= R; dx++) {
+            for (int dz = -R; dz <= R; dz++) {
+                BlockPos p = basePos.add(dx, 0, dz);
+                sum += client.world.getLightLevel(p);
+                count++;
+            }
+        }
+        int blockLightAvg = count > 0 ? (sum / count) : client.world.getLightLevel(basePos);
+        int rawBlock = client.world.getLightLevel(basePos);
+        int extra = com.hitpo.doommc3d.client.lighting.ClientExtralightManager.scaledExtra(3);
+        int rawEffective = Math.max(0, Math.min(15, blockLightAvg + extra));
+
+        // Temporal smoothing: use adaptive lerp rates so brightening can feel responsive
+        // while darkening (entering new darker sector) is slightly slower to avoid popping.
+        if (smoothedEffective < 0.0) smoothedEffective = rawEffective;
+        final double LERP_UP = 0.35;   // when raw > smoothed: faster
+        final double LERP_DOWN = 0.12; // when raw <= smoothed: slower
+        double lerp = rawEffective > smoothedEffective ? LERP_UP : LERP_DOWN;
+        smoothedEffective = smoothedEffective * (1.0 - lerp) + rawEffective * lerp;
+        double effectiveForDarkness = smoothedEffective;
+
+        // Ambient baseline to avoid complete black in interiors.
+        // Raise baseline to brighten overall look (closer to vanilla Doom brightness).
+        final int AMBIENT_BASE = 4;
+        double darkness = 1.0 - ((effectiveForDarkness + AMBIENT_BASE) / 17.0);
+        // Use 16 bands matching Chocolate Doom LIGHTLEVELS for a closer feel, but
+        // softly blend between adjacent bands to reduce visual stepping.
+        int bands = 16;
+        double scaled = darkness * bands;
+        double bandFloor = Math.floor(scaled);
+        double frac = scaled - bandFloor; // 0..1 fraction inside the band
+        // blendFactor controls how much of the fractional part bleeds into the next band
+        final double BLEND_FACTOR = 0.80;
+        double banded = (bandFloor + frac * BLEND_FACTOR) / (double) bands;
+        // reduce overlay multiplier so darkness isn't too heavy overall
+        float alpha = (float) (banded * 0.65f);
+        if (alpha > 0f) {
+            int a = (int) (alpha * 255) & 0xFF;
+            int color = (a << 24);
+            int ww = drawContext.getScaledWindowWidth();
+            int hh = drawContext.getScaledWindowHeight();
+            drawContext.fill(0, 0, ww, hh, color);
+        }
+
+        // Debug overlay: small panel with raw/avg/smoothed/extralight values for tuning
+        int dbgX = 6;
+        int dbgY = 6;
+        TextRenderer trDbg = client.textRenderer;
+        String[] dbgLines = new String[] {
+            String.format("rawBlock=%d avg=%d extra=%d", rawBlock, blockLightAvg, extra),
+            String.format("rawEff=%d smoothed=%.2f", rawEffective, smoothedEffective),
+            String.format("bands=%d frac=%.2f alpha=%.3f", bands, frac, alpha),
+            String.format("extraTicks=%d", com.hitpo.doommc3d.client.lighting.ClientExtralightManager.getTicks())
+        };
+        // small translucent background for debug text
+        int dbgW = 220;
+        int dbgH = dbgLines.length * 10 + 6;
+        drawContext.fill(dbgX - 4, dbgY - 4, dbgX + dbgW, dbgY + dbgH, 0x77000000);
+        for (int i = 0; i < dbgLines.length; i++) {
+            drawContext.drawTextWithShadow(trDbg, dbgLines[i], dbgX, dbgY + i * 10, 0xFFFFFFFF);
         }
 
         int w = drawContext.getScaledWindowWidth();
@@ -38,6 +113,15 @@ public final class DoomHudRenderer implements HudRenderCallback {
         PlayerEntity player = client.player;
         TextRenderer tr = client.textRenderer;
 
+        // Draw pickup text at top-left (Doom-style)
+        if (pickupTicksRemaining > 0 && pickupText != null && !pickupText.isEmpty()) {
+            drawContext.drawTextWithShadow(tr, pickupText, 8, 8, pickupColor);
+            pickupTicksRemaining--;
+            if (pickupTicksRemaining <= 0) {
+                pickupText = null;
+            }
+        }
+
         int health = Math.max(0, (int) Math.ceil(player.getHealth()));
         int armor = player.getArmor();
         int ammo = DoomAmmo.getAmmoForHeldWeapon(player);
@@ -46,9 +130,29 @@ public final class DoomHudRenderer implements HudRenderCallback {
         drawContext.drawTextWithShadow(tr, "AMMO " + ammo, 8, y0 + 26, 0xFFCCCC44);
         drawContext.drawTextWithShadow(tr, "AR " + armor, w - 8 - tr.getWidth("AR " + armor), y0 + 14, 0xFF44CCCC);
 
+        // Keycard indicators (show when player has key command tags)
+        String keysLabel = "";
+        boolean hasRed = player.getCommandTags().contains("doommc3d_key_red");
+        boolean hasYellow = player.getCommandTags().contains("doommc3d_key_yellow");
+        boolean hasBlue = player.getCommandTags().contains("doommc3d_key_blue");
+        if (hasRed) keysLabel += "[R] ";
+        if (hasYellow) keysLabel += "[Y] ";
+        if (hasBlue) keysLabel += "[B] ";
+        if (!keysLabel.isEmpty()) {
+            int keyX = w - 8 - tr.getWidth(keysLabel);
+            drawContext.drawTextWithShadow(tr, keysLabel, keyX, y0 + 26, 0xFFFFFFFF);
+        }
+
         renderFace(drawContext, player, w / 2 - 16, y0 + 4, 32, 32);
         renderWeapon(drawContext, client, w, h, y0);
         renderPainOverlay(drawContext, player, 0, 0, w, h);
+    }
+
+    // Called from networking handler to show pickup text
+    public static void showPickup(String text, int color, int durationTicks) {
+        pickupText = text;
+        pickupColor = color;
+        pickupTicksRemaining = Math.max(1, durationTicks);
     }
 
     private static void renderFace(DrawContext dc, PlayerEntity player, int x, int y, int size, int sizeY) {

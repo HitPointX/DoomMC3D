@@ -40,10 +40,10 @@ public final class DoomWalkTriggerSystem {
                 continue;
             }
 
-            System.out.println("[DoomMC3D] Player " + player.getName().getString() + " stepped on walk trigger at " + under + " groupId=" + trigger.groupId() + " activated=" + trigger.activated() + " once=" + info.once());
+            com.hitpo.doommc3d.util.DebugLogger.debugThrottled("DoomWalkTriggerSystem.step", 500, () -> "[DoomMC3D] Player " + player.getName().getString() + " stepped on walk trigger at " + under + " groupId=" + trigger.groupId() + " activated=" + trigger.activated() + " once=" + info.once());
 
             if (trigger.activated() && info.once()) {
-                System.out.println("[DoomMC3D] Walk trigger already activated (once=true), skipping");
+                com.hitpo.doommc3d.util.DebugLogger.debug("DoomWalkTriggerSystem", () -> "[DoomMC3D] Walk trigger already activated (once=true), skipping");
                 continue;
             }
 

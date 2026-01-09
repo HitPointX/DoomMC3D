@@ -1,0 +1,130 @@
+---- Minecraft Crash Report ----
+// Why is it breaking :(
+
+Time: 2026-01-08 21:29:39
+Description: Exception in server tick loop
+
+java.lang.NoClassDefFoundError: com/hitpo/doommc3d/interact/DoomLineTriggerSystem
+	at knot//com.hitpo.doommc3d.net.DoomNetworking.lambda$init$1(DoomNetworking.java:34)
+	at knot//net.fabricmc.fabric.impl.networking.server.ServerPlayNetworkAddon.receive(ServerPlayNetworkAddon.java:78)
+	at knot//net.fabricmc.fabric.impl.networking.server.ServerPlayNetworkAddon.receive(ServerPlayNetworkAddon.java:41)
+	at knot//net.fabricmc.fabric.impl.networking.AbstractChanneledNetworkAddon.handle(AbstractChanneledNetworkAddon.java:102)
+	at knot//net.minecraft.server.network.ServerPlayNetworkHandler.handler$zej001$fabric-networking-api-v1$handleCustomPayloadReceivedAsync(ServerPlayNetworkHandler.java:2403)
+	at knot//net.minecraft.server.network.ServerPlayNetworkHandler.onCustomPayload(ServerPlayNetworkHandler.java)
+	at knot//net.minecraft.network.packet.c2s.common.CustomPayloadC2SPacket.apply(CustomPayloadC2SPacket.java:36)
+	at knot//net.minecraft.network.packet.c2s.common.CustomPayloadC2SPacket.apply(CustomPayloadC2SPacket.java:15)
+	at knot//net.minecraft.network.PacketApplyBatcher$Entry.apply(PacketApplyBatcher.java:55)
+	at knot//net.minecraft.network.PacketApplyBatcher.apply(PacketApplyBatcher.java:38)
+	at knot//net.minecraft.server.MinecraftServer.processPacketsAndTick(MinecraftServer.java:1047)
+	at knot//net.minecraft.server.integrated.IntegratedServer.processPacketsAndTick(IntegratedServer.java:100)
+	at knot//net.minecraft.server.MinecraftServer.runServer(MinecraftServer.java:771)
+	at knot//net.minecraft.server.MinecraftServer.method_29739(MinecraftServer.java:301)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+Caused by: java.lang.ClassNotFoundException: com.hitpo.doommc3d.interact.DoomLineTriggerSystem
+	at java.base/jdk.internal.loader.BuiltinClassLoader.loadClass(BuiltinClassLoader.java:641)
+	at java.base/java.lang.ClassLoader.loadClass(ClassLoader.java:526)
+	at net.fabricmc.loader.impl.launch.knot.KnotClassDelegate.loadClass(KnotClassDelegate.java:239)
+	at net.fabricmc.loader.impl.launch.knot.KnotClassLoader.loadClass(KnotClassLoader.java:119)
+	at java.base/java.lang.ClassLoader.loadClass(ClassLoader.java:526)
+	... 15 more
+
+
+A detailed walkthrough of the error, its code path and all known details is as follows:
+---------------------------------------------------------------------------------------
+
+-- System Details --
+Details:
+	Minecraft Version: 1.21.11
+	Minecraft Version ID: 1.21.11
+	Operating System: Linux (amd64) version 6.18.3-1-cachyos-bore
+	Java Version: 21.0.9, Arch Linux
+	Java VM Version: OpenJDK 64-Bit Server VM (mixed mode, sharing), Arch Linux
+	Memory: 1069108336 bytes (1019 MiB) / 2332033024 bytes (2224 MiB) up to 25232932864 bytes (24064 MiB)
+	CPUs: 16
+	Processor Vendor: GenuineIntel
+	Processor Name: Intel(R) Core(TM) i7-14700K
+	Identifier: Intel64 Family 6 Model 183 Stepping 1
+	Microarchitecture: Raptor Lake
+	Frequency (GHz): -0.00
+	Number of physical packages: 1
+	Number of physical CPUs: 20
+	Number of logical CPUs: 28
+	Graphics card #0 name: AD103 [GeForce RTX 4080]
+	Graphics card #0 vendor: NVIDIA Corporation (0x10de)
+	Graphics card #0 VRAM (MiB): 16416.00
+	Graphics card #0 deviceId: 0x2704
+	Graphics card #0 versionInfo: unknown
+	Virtual memory max (MiB): 150526.03
+	Virtual memory used (MiB): 23678.85
+	Swap memory total (MiB): 102400.00
+	Swap memory used (MiB): 2894.69
+	Space in storage for jna.tmpdir (MiB): <path not set>
+	Space in storage for org.lwjgl.system.SharedLibraryExtractPath (MiB): <path not set>
+	Space in storage for io.netty.native.workdir (MiB): <path not set>
+	Space in storage for java.io.tmpdir (MiB): available: 47777.77, total: 48126.04
+	Space in storage for workdir (MiB): available: 445106.09, total: 1775387.38
+	JVM Flags: 0 total; 
+	Debug Flags: 0 total; 
+	Fabric Mods: 
+		doommc3d: DoomMC3D 0.1.0
+		fabric-api: Fabric API 0.141.1+1.21.11
+		fabric-api-base: Fabric API Base 1.0.5+4ebb5c083e
+		fabric-api-lookup-api-v1: Fabric API Lookup API (v1) 1.6.113+1fb1cde93e
+		fabric-biome-api-v1: Fabric Biome API (v1) 17.1.1+4fc5413f3e
+		fabric-block-api-v1: Fabric Block API (v1) 1.1.10+4ebb5c083e
+		fabric-block-view-api-v2: Fabric BlockView API (v2) 1.0.39+4ebb5c083e
+		fabric-client-gametest-api-v1: Fabric Client Game Test API (v1) 4.3.5+bfe9fcf43e
+		fabric-command-api-v2: Fabric Command API (v2) 2.4.7+6b42a6003e
+		fabric-content-registries-v0: Fabric Content Registries (v0) 10.2.14+4fc5413f3e
+		fabric-convention-tags-v1: Fabric Convention Tags 2.1.55+7f945d5b3e
+		fabric-convention-tags-v2: Fabric Convention Tags (v2) 2.17.3+8ef948ba3e
+		fabric-crash-report-info-v1: Fabric Crash Report Info (v1) 0.3.23+4ebb5c083e
+		fabric-data-attachment-api-v1: Fabric Data Attachment API (v1) 1.8.46+b6ef3aec3e
+		fabric-data-generation-api-v1: Fabric Data Generation API (v1) 23.4.0+69974c4e3e
+		fabric-dimensions-v1: Fabric Dimensions API (v1) 4.0.28+4fc5413f3e
+		fabric-entity-events-v1: Fabric Entity Events (v1) 3.1.1+1d0ab4303e
+		fabric-events-interaction-v0: Fabric Events Interaction (v0) 4.1.0+3b89ecf63e
+		fabric-game-rule-api-v1: Fabric Game Rule API (v1) 2.0.3+4fc5413f3e
+		fabric-gametest-api-v1: Fabric Game Test API (v1) 3.1.27+4fc5413f3e
+		fabric-item-api-v1: Fabric Item API (v1) 11.5.20+d0c46b9e3e
+		fabric-item-group-api-v1: Fabric Item Group API (v1) 4.2.36+4fc5413f3e
+		fabric-key-binding-api-v1: Fabric Key Binding API (v1) 1.1.7+4fc5413f3e
+		fabric-lifecycle-events-v1: Fabric Lifecycle Events (v1) 2.6.15+4ebb5c083e
+		fabric-loot-api-v2: Fabric Loot API (v2) 3.0.73+3f89f5a53e
+		fabric-loot-api-v3: Fabric Loot API (v3) 2.0.20+78c8b4663e
+		fabric-message-api-v1: Fabric Message API (v1) 6.1.12+4ebb5c083e
+		fabric-model-loading-api-v1: Fabric Model Loading API (v1) 6.0.14+4fc5413f3e
+		fabric-networking-api-v1: Fabric Networking API (v1) 5.1.5+ae1e07683e
+		fabric-object-builder-api-v1: Fabric Object Builder API (v1) 21.1.39+4fc5413f3e
+		fabric-particles-v1: Fabric Particles (v1) 4.2.11+4fc5413f3e
+		fabric-recipe-api-v1: Fabric Recipe API (v1) 8.2.3+4ebb5c083e
+		fabric-registry-sync-v0: Fabric Registry Sync (v0) 6.2.5+1718722b3e
+		fabric-renderer-api-v1: Fabric Renderer API (v1) 8.0.2+f4ffd2e53e
+		fabric-renderer-indigo: Fabric Renderer - Indigo 5.0.2+f4ffd2e53e
+		fabric-rendering-fluids-v1: Fabric Rendering Fluids (v1) 3.1.43+4ebb5c083e
+		fabric-rendering-v1: Fabric Rendering (v1) 16.2.9+7edacff13e
+		fabric-resource-conditions-api-v1: Fabric Resource Conditions API (v1) 5.0.35+4fc5413f3e
+		fabric-resource-loader-v0: Fabric Resource Loader (v0) 3.3.4+4fc5413f3e
+		fabric-resource-loader-v1: Fabric Resource Loader (v1) 1.0.10+78c8b4663e
+		fabric-screen-api-v1: Fabric Screen API (v1) 3.1.7+4ebb5c083e
+		fabric-screen-handler-api-v1: Fabric Screen Handler API (v1) 1.3.161+4fc5413f3e
+		fabric-serialization-api-v1: Fabric Serialization API (v1) 1.0.5+4ebb5c083e
+		fabric-sound-api-v1: Fabric Sound API (v1) 1.0.51+4fc5413f3e
+		fabric-tag-api-v1: Fabric Tag API (v1) 1.2.20+4fc5413f3e
+		fabric-transfer-api-v1: Fabric Transfer API (v1) 6.0.24+4fc5413f3e
+		fabric-transitive-access-wideners-v1: Fabric Transitive Access Wideners (v1) 7.1.0+014c8cec3e
+		fabricloader: Fabric Loader 0.18.4
+		java: OpenJDK 64-Bit Server VM 21
+		minecraft: Minecraft 1.21.11
+		mixinextras: MixinExtras 0.5.0
+	Server Running: true
+	Player Count: 1 / 8; [ServerPlayerEntity['Player416'/18, l='ServerLevel[New World]', x=-2.30, y=160.00, z=27.37]]
+	Active Data Packs: vanilla, fabric-convention-tags-v2, fabric-gametest-api-v1
+	Available Data Packs: fabric-convention-tags-v2, fabric-gametest-api-v1, minecart_improvements, redstone_experiments, trade_rebalance, vanilla
+	Enabled Feature Flags: minecraft:vanilla
+	World Generation: Stable
+	World Seed: -574347359817889640
+	Suppressed Exceptions: ~~NONE~~
+	Type: Integrated Server (map_client.txt)
+	Is Modded: Definitely; Client brand changed to 'fabric'; Server brand changed to 'fabric'
+	Launched Version: Fabric

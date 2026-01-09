@@ -11,9 +11,16 @@ import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.minecraft.client.render.entity.FlyingItemEntityRenderer;
 import net.minecraft.sound.SoundCategory;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.render.entity.EntityRenderer;
+import net.minecraft.client.render.entity.EntityRendererFactory;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.entity.Entity;
+import net.minecraft.util.Identifier;
 
 public class DoomMC3DClient implements ClientModInitializer {
     @Override
+    @SuppressWarnings({"unchecked","rawtypes"})
     public void onInitializeClient() {
         HudRenderCallback.EVENT.register(new DoomHudRenderer());
         DoomWeaponClientAnim.register();
@@ -25,6 +32,8 @@ public class DoomMC3DClient implements ClientModInitializer {
         EntityRendererRegistry.register(ModEntities.DOOM_ROCKET, FlyingItemEntityRenderer::new);
         EntityRendererRegistry.register(ModEntities.DOOM_PLASMA, FlyingItemEntityRenderer::new);
         EntityRendererRegistry.register(ModEntities.DOOM_BFG_BALL, FlyingItemEntityRenderer::new);
+        // Renderer for lift platform entity (must exist even if invisible).
+        EntityRendererRegistry.register((net.minecraft.entity.EntityType)ModEntities.LIFT_PLATFORM, (EntityRendererFactory) InvisibleEntityRenderer::new);
 
         // Kill vanilla music when entering a world so Doom music can own the soundtrack.
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
@@ -38,5 +47,33 @@ public class DoomMC3DClient implements ClientModInitializer {
                 client.options.write();
             }
         });
+        // end onInitializeClient
     }
+
+    private static final class InvisibleEntityRenderer<T extends net.minecraft.entity.Entity> extends net.minecraft.client.render.entity.EntityRenderer<T, net.minecraft.client.render.entity.state.EntityRenderState> {
+        protected InvisibleEntityRenderer(EntityRendererFactory.Context ctx) {
+            super(ctx);
+        }
+
+        public void render(
+            net.minecraft.entity.Entity entity,
+            float yaw,
+            float tickDelta,
+            MatrixStack matrices,
+            VertexConsumerProvider consumers,
+            int light
+        ) {
+            // intentionally invisible / no-op
+        }
+        public Identifier getTexture(net.minecraft.entity.Entity entity) {
+            return null;
+        }
+
+        @Override
+        public net.minecraft.client.render.entity.state.EntityRenderState createRenderState() {
+            // Rendering state not needed for invisible renderer.
+            return null;
+        }
+    }
+
 }

@@ -77,7 +77,7 @@ public class ModSounds {
     
     public static void init() {
         // Static initialization - sounds are registered when class loads
-        System.out.println("[DoomMC3D] Registered " + Registries.SOUND_EVENT.getIds().stream()
+        com.hitpo.doommc3d.util.DebugLogger.debug("ModSounds.init", () -> "[DoomMC3D] Registered " + Registries.SOUND_EVENT.getIds().stream()
             .filter(id -> id.getNamespace().equals(DoomMC3D.MOD_ID))
             .count() + " custom sound events");
     }

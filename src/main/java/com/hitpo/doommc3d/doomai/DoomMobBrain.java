@@ -3,6 +3,7 @@ package com.hitpo.doommc3d.doomai;
 import com.hitpo.doommc3d.net.PlayDoomSfxPayload;
 import com.hitpo.doommc3d.sound.ModSounds;
 import com.hitpo.doommc3d.worldgen.DoomHitscan;
+import com.hitpo.doommc3d.worldgen.DoomMobDrops;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
@@ -35,6 +36,8 @@ public final class DoomMobBrain {
     private double doomTicAccumulator = 0.0;
 
     private int reactionTics = 0;
+    // Base reaction tics used to compute randomized sight-delay when waking
+    private int baseReactionTics = 0;
     private int attackCooldownTics = 0;
     private int jumpCooldownTics = 0;
     private int painTics = 0;  // Cooldown after pain reaction
@@ -58,15 +61,30 @@ public final class DoomMobBrain {
      */
     private int getPainChance() {
         return switch (type) {
-            case ZOMBIEMAN -> 150;      // 60% chance
-            case SHOTGUN_GUY -> 150;
-            case CHAINGUNNER -> 140;    // 55% chance (slightly tougher)
-            case IMP -> 140;
-            case DEMON -> 180;          // 70% chance (feels pain more)
-            case SPECTRE -> 180;
-            case LOST_SOUL -> 200;      // 80% chance (angry fast mobs)
-            case CACODEMON -> 120;      // 47% chance (tough)
-            case BARON -> 80;           // 30% chance (very tough, pain chance is low)
+            // Values mirrored from Chocolate Doom's `mobjinfo` painchance entries
+            case ZOMBIEMAN -> 200;      // MT_POSSESSED
+            case SHOTGUN_GUY -> 170;    // MT_SHOTGUY
+            case CHAINGUNNER -> 170;    // MT_CHAINGUY
+            case IMP -> 200;            // MT_TROOP (imp-like)
+            case DEMON -> 80;           // MT_FATSO / pinky-family approximate
+            case SPECTRE -> 50;         // spectre is stealthy/tougher to pain
+            case LOST_SOUL -> 256;      // MT_SKULL / lost soul - very high pain response
+            case CACODEMON -> 128;      // MT_HEAD (cacodemon)
+            case BARON -> 50;           // MT_BRUISER (baron)
+        };
+    }
+
+    private int getAttackChance() {
+        return switch (type) {
+            case ZOMBIEMAN -> 200;
+            case SHOTGUN_GUY -> 210;
+            case CHAINGUNNER -> 190;
+            case IMP -> 180;
+            case DEMON -> 210;
+            case SPECTRE -> 210;
+            case LOST_SOUL -> 190;
+            case CACODEMON -> 200;
+            case BARON -> 170;
         };
     }
 
@@ -93,38 +111,44 @@ public final class DoomMobBrain {
                 setAttr(mob, EntityAttributes.SCALE, 1.1);
                 setAttr(mob, EntityAttributes.MOVEMENT_SPEED, 0.20);
                 setAttr(mob, EntityAttributes.MAX_HEALTH, 20.0);
-                reactionTics = 10;
+                reactionTics = 0;
+                baseReactionTics = 8;
             }
             case SHOTGUN_GUY -> {
                 setAttr(mob, EntityAttributes.SCALE, 1.15);
                 setAttr(mob, EntityAttributes.MOVEMENT_SPEED, 0.22);
                 setAttr(mob, EntityAttributes.MAX_HEALTH, 30.0);
-                reactionTics = 10;
+                reactionTics = 0;
+                baseReactionTics = 8;
             }
             case CHAINGUNNER -> {
                 setAttr(mob, EntityAttributes.SCALE, 1.15);
                 setAttr(mob, EntityAttributes.MOVEMENT_SPEED, 0.24);
                 setAttr(mob, EntityAttributes.MAX_HEALTH, 35.0);
-                reactionTics = 8;
+                reactionTics = 0;
+                baseReactionTics = 8;
             }
             case IMP -> {
                 setAttr(mob, EntityAttributes.SCALE, 1.25);
                 setAttr(mob, EntityAttributes.MOVEMENT_SPEED, 0.23);
                 setAttr(mob, EntityAttributes.MAX_HEALTH, 60.0);
-                reactionTics = 12;
+                reactionTics = 0;
+                baseReactionTics = 8;
                 mob.setNoGravity(true);
             }
             case DEMON -> {
                 setAttr(mob, EntityAttributes.SCALE, 1.35);
                 setAttr(mob, EntityAttributes.MOVEMENT_SPEED, 0.28);
                 setAttr(mob, EntityAttributes.MAX_HEALTH, 120.0);
-                reactionTics = 6;
+                reactionTics = 0;
+                baseReactionTics = 8;
             }
             case SPECTRE -> {
                 setAttr(mob, EntityAttributes.SCALE, 1.35);
                 setAttr(mob, EntityAttributes.MOVEMENT_SPEED, 0.29);
                 setAttr(mob, EntityAttributes.MAX_HEALTH, 120.0);
-                reactionTics = 6;
+                reactionTics = 0;
+                baseReactionTics = 8;
                 // Vanilla can't do Doom's partial transparency without a custom renderer.
                 // For now: full invisibility + subtle particle shimmer so it's still "readable".
                 mob.addStatusEffect(new StatusEffectInstance(StatusEffects.INVISIBILITY, Integer.MAX_VALUE, 0, false, false));
@@ -134,7 +158,8 @@ public final class DoomMobBrain {
                 setAttr(mob, EntityAttributes.MOVEMENT_SPEED, 0.32);
                 setAttr(mob, EntityAttributes.FLYING_SPEED, 0.55);
                 setAttr(mob, EntityAttributes.MAX_HEALTH, 30.0);
-                reactionTics = 4;
+                reactionTics = 0;
+                baseReactionTics = 8;
                 mob.setNoGravity(true);
                 mob.addStatusEffect(new StatusEffectInstance(StatusEffects.FIRE_RESISTANCE, Integer.MAX_VALUE, 0, false, false));
             }
@@ -143,14 +168,16 @@ public final class DoomMobBrain {
                 setAttr(mob, EntityAttributes.MOVEMENT_SPEED, 0.18);
                 setAttr(mob, EntityAttributes.FLYING_SPEED, 0.08);
                 setAttr(mob, EntityAttributes.MAX_HEALTH, 200.0);
-                reactionTics = 14;
+                reactionTics = 0;
+                baseReactionTics = 8;
                 mob.setNoGravity(true);
             }
             case BARON -> {
                 setAttr(mob, EntityAttributes.SCALE, 1.7);
                 setAttr(mob, EntityAttributes.MOVEMENT_SPEED, 0.20);
                 setAttr(mob, EntityAttributes.MAX_HEALTH, 300.0);
-                reactionTics = 12;
+                reactionTics = 0;
+                baseReactionTics = 8;
             }
         }
 
@@ -159,9 +186,28 @@ public final class DoomMobBrain {
 
     public void tick(ServerWorld world, MobEntity mob) {
         // CRITICAL: Death check FIRST before ANY other logic
-        // Check deathTime > 0 which means entity is in death animation
-        // This is the ONLY reliable way to detect dying mobs in Minecraft
+        // If the mob reached zero health but for some reason the die() mixin didn't
+        // convert it to a static corpse, perform a safe fallback replacement here.
         if (mob.getHealth() <= 0.0f || mob.isDead() || mob.isRemoved() || mob.deathTime > 0) {
+            // If it's a Doom mob and no corpse display exists nearby, spawn one and
+            // remove the living entity to avoid continued AI/physics jitter.
+            if (DoomMobDrops.isDoomMob(mob) && mob.getEntityWorld() instanceof ServerWorld sw) {
+                var box = mob.getBoundingBox().expand(0.6, 0.6, 0.6);
+                boolean hasCorpseNearby = !sw.getEntitiesByType(
+                    net.minecraft.entity.EntityType.ITEM_DISPLAY,
+                    box,
+                    e -> e.getCommandTags().contains(com.hitpo.doommc3d.worldgen.DoomThingSpawner.TAG_SPAWNED) || e.getCommandTags().contains("doommc3d_corpse")
+                ).isEmpty();
+
+                if (!hasCorpseNearby) {
+                    com.hitpo.doommc3d.worldgen.DoomMobDrops.spawnCorpseDisplay(sw, mob);
+                }
+
+                // Ensure the living mob is removed so it can't keep animating or be
+                // subject to server-client corrections that cause jitter.
+                mob.remove(net.minecraft.entity.Entity.RemovalReason.KILLED);
+            }
+
             // Dead/dying mobs do absolutely nothing - stop all movement immediately
             mob.setVelocity(0, 0, 0);
             mob.setAiDisabled(true);
@@ -306,6 +352,8 @@ public final class DoomMobBrain {
             if (wakeSightCheckTics == 0) {
                 if (tryWakeBySight(world, mob)) {
                     awake = true;
+                    // Vanilla Doom: set a fixed reaction delay on first sight
+                    reactionTics = 8;
                     // Play sight sound when first seeing player (Doom behavior)
                     if (sightSoundCooldown == 0) {
                         playSightSound(world, mob);
@@ -383,6 +431,14 @@ public final class DoomMobBrain {
             return;
         }
 
+        // Enforce reaction delay: if still in reaction tics after waking, do not attack yet.
+        if (reactionTics > 0) {
+            return;
+        }
+
+        // Vanilla: attack decision is RNG-gated per tick. Each enemy uses
+        // if (P_Random() < attackThreshold) then attack.
+
         // Vanilla Doom behavior: after cooldown expires, monsters don't fire immediately
         // They enter a "roam" state for a bit, then attack
         // This prevents continuous spam and feels more natural
@@ -392,7 +448,10 @@ public final class DoomMobBrain {
                 if (roamTics > 0) {
                     return;  // Still roaming, don't fire yet
                 }
-                // Fire hitscan
+                if (mob.getRandom().nextInt(256) >= getAttackChance()) {
+                    return; // RNG gate: do not attack this tick
+                }
+                // Fire hitscan (1 pellet pistol)
                 DoomHitscan.fireMonsterHitscan(world, mob, target, 1, 48.0, 0.025);
                 playDoomSound(world, new Vec3d(mob.getX(), mob.getY(), mob.getZ()), "DSPISTOL", 1.2f, 1.0f);
                 attackCooldownTics = 40;  // ~2 seconds before next shot consideration
@@ -402,14 +461,20 @@ public final class DoomMobBrain {
                 if (roamTics > 0) {
                     return;
                 }
-                // Classic shotgun guy: 3 pellets, modest spread.
-                DoomHitscan.fireMonsterHitscan(world, mob, target, 3, 48.0, 0.08);
+                if (mob.getRandom().nextInt(256) >= getAttackChance()) {
+                    return;
+                }
+                // Classic shotgun guy: 7 pellets, wide spread.
+                DoomHitscan.fireMonsterHitscan(world, mob, target, 7, 48.0, 0.08);
                 playDoomSound(world, new Vec3d(mob.getX(), mob.getY(), mob.getZ()), "DSSHTGN", 1.0f, 1.0f);
                 attackCooldownTics = 50;  // Slightly slower than zombieman
                 roamTics = 30;  // Roam a bit longer
             }
             case CHAINGUNNER -> {
                 if (roamTics > 0) {
+                    return;
+                }
+                if (mob.getRandom().nextInt(256) >= getAttackChance()) {
                     return;
                 }
                 // Chaingunner: bursts of 2 shots, then pauses
@@ -420,6 +485,9 @@ public final class DoomMobBrain {
             }
             case IMP -> {
                 // Doom Imp: 20 tics windup, then fires
+                if (mob.getRandom().nextInt(256) >= getAttackChance()) {
+                    return;
+                }
                 if (projectileWindupTics == 0) {
                     projectileWindupTics = 20;
                     attackCooldownTics = 60;  // Next attack in 60 tics
@@ -435,6 +503,9 @@ public final class DoomMobBrain {
             }
             case DEMON -> {
                 if (distSq <= 2.2 * 2.2) {
+                    if (mob.getRandom().nextInt(256) >= getAttackChance()) {
+                        return;
+                    }
                     // Doom Demon melee: 10 damage
                     target.damage(world, mob.getDamageSources().mobAttack(mob), 10.0f);
                     playDoomSound(world, new Vec3d(mob.getX(), mob.getY(), mob.getZ()), "DSSGTATK", 0.8f, 1.0f);
@@ -443,6 +514,9 @@ public final class DoomMobBrain {
             }
             case SPECTRE -> {
                 if (distSq <= 2.2 * 2.2) {
+                    if (mob.getRandom().nextInt(256) >= getAttackChance()) {
+                        return;
+                    }
                     // Spectre = Demon twin, same attack
                     target.damage(world, mob.getDamageSources().mobAttack(mob), 10.0f);
                     playDoomSound(world, new Vec3d(mob.getX(), mob.getY(), mob.getZ()), "DSSGTATK", 0.8f, 1.2f);
@@ -451,8 +525,11 @@ public final class DoomMobBrain {
             }
             case LOST_SOUL -> {
                 if (distSq <= 1.25 * 1.25) {
-                    // Doom Lost Soul melee: 3d8 (3-24 avg 13.5, we use ~13)
-                    int damage = 4 + mob.getRandom().nextInt(9);  // 4-12 range
+                    if (mob.getRandom().nextInt(256) >= getAttackChance()) {
+                        return;
+                    }
+                    // Doom Lost Soul melee: 3d8 (3-24)
+                    int damage = (mob.getRandom().nextInt(8) + 1) + (mob.getRandom().nextInt(8) + 1) + (mob.getRandom().nextInt(8) + 1);
                     target.damage(world, mob.getDamageSources().mobAttack(mob), damage);
                     playDoomSound(world, new Vec3d(mob.getX(), mob.getY(), mob.getZ()), "DSSKLATK", 0.9f, 1.4f);
                     // Bounce off after the hit like Doom's skulls.

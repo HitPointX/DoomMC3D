@@ -50,10 +50,12 @@ public class DoomMC3D implements ModInitializer {
         DoomVanillaSpawnSuppressor.register();
         DoomBossSystem.register();
         DoomMobSystem.register();
+        com.hitpo.doommc3d.worldgen.DoomDeathWatcher.register();
         DoomGenCommand.register();
         DoomGiveAllCommand.register();
         DoomBossCommand.register();
         DoomMobCommand.register();
+        com.hitpo.doommc3d.command.DoomDebugCommand.register();
         DoomDoorInteractions.register();
         DoomSwitchInteractions.register();
         DoomTriggerInteractions.register();
@@ -62,6 +64,19 @@ public class DoomMC3D implements ModInitializer {
         } catch (Exception e) {
             e.printStackTrace();
         }
-        System.out.println("[DoomMC3D] Initialized");
+        // Ensure a sample external corpse config exists for easier tuning by users
+        try {
+            java.nio.file.Path cfgDir = java.nio.file.Path.of("config");
+            java.nio.file.Files.createDirectories(cfgDir);
+            java.nio.file.Path cfgFile = cfgDir.resolve("doommc3d_corpse.properties");
+            if (!java.nio.file.Files.exists(cfgFile)) {
+                try (var in = DoomMC3D.class.getClassLoader().getResourceAsStream("doommc3d_corpse.properties")) {
+                    if (in != null) java.nio.file.Files.copy(in, cfgFile);
+                }
+            }
+        } catch (Exception e) {
+            // non-fatal
+        }
+        com.hitpo.doommc3d.util.DebugLogger.debug("DoomMC3D.init", () -> "[DoomMC3D] Initialized");
     }
 }

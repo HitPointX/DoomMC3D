@@ -53,7 +53,8 @@ public final class DoomSoundPlayer {
             byte[] wavData = SOUND_CACHE.computeIfAbsent(lumpName, DoomSoundPlayer::loadSoundFromWad);
             
             if (wavData == null) {
-                System.err.println("[DoomMC3D] Sound not found: " + lumpName);
+                final String notFoundMsg = "[DoomMC3D] Sound not found: " + lumpName;
+                com.hitpo.doommc3d.util.DebugLogger.debug("DoomSoundPlayer", () -> notFoundMsg);
                 return;
             }
 
@@ -77,7 +78,7 @@ public final class DoomSoundPlayer {
             }
             
         } catch (Exception e) {
-            System.err.println("[DoomMC3D] Failed to play sound " + soundName + ": " + e.getMessage());
+            com.hitpo.doommc3d.util.DebugLogger.debug("DoomSoundPlayer.error", () -> "[DoomMC3D] Failed to play sound " + soundName + ": " + e.getMessage());
         }
     }
 
@@ -97,7 +98,7 @@ public final class DoomSoundPlayer {
             return convertDoomSoundToWav(data);
             
         } catch (Exception e) {
-            System.err.println("[DoomMC3D] Failed to load sound " + lumpName + ": " + e.getMessage());
+            com.hitpo.doommc3d.util.DebugLogger.debug("DoomSoundPlayer.load", () -> "[DoomMC3D] Failed to load sound " + lumpName + ": " + e.getMessage());
             return null;
         }
     }
@@ -214,7 +215,7 @@ public final class DoomSoundPlayer {
             }, "DoomSFX-Cleanup").start();
             
         } catch (Exception e) {
-            System.err.println("[DoomMC3D] Error playing sound data: " + e.getMessage());
+            com.hitpo.doommc3d.util.DebugLogger.debug("DoomSoundPlayer.play", () -> "[DoomMC3D] Error playing sound data: " + e.getMessage());
         }
     }
 

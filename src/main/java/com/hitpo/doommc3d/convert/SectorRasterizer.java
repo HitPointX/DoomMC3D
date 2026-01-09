@@ -10,6 +10,7 @@ import com.hitpo.doommc3d.doommap.Vertex;
 import com.hitpo.doommc3d.worldgen.BlockPlacer;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.BlockState;
+import net.minecraft.state.property.Properties;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -25,7 +26,7 @@ public final class SectorRasterizer {
     private static final BlockState PILLAR_MIDDLE_STATE = Blocks.CUT_SANDSTONE.getDefaultState();
     private static final BlockState PILLAR_TRIM_STATE = Blocks.SMOOTH_QUARTZ.getDefaultState();
     private static final BlockState AIR_STATE = Blocks.AIR.getDefaultState();
-    private static final BlockState LIGHT_STATE = Blocks.GLOWSTONE.getDefaultState();
+    private static final BlockState LIGHT_BASE = Blocks.LIGHT.getDefaultState();
     private static final int MIN_INTERIOR_AIR_BLOCKS = 3;
     private static final int PILLAR_MAX_BOUNDS_BLOCKS = 6;
     private static final int PILLAR_MAX_AREA_BLOCKS = 28;
@@ -212,31 +213,46 @@ public final class SectorRasterizer {
     }
 
     private void maybePlaceLight(Sector sector, BlockPlacer placer, int x, int z, int ceilingY) {
-        int lightLevel = sector.lightLevel();
-        int mcLight = (int) Math.round((Math.max(0, Math.min(255, lightLevel)) / 255.0) * 15.0);
-        int spacing = lightSpacing(mcLight);
-        if (spacing <= 0) {
+        int doom = Math.max(0, Math.min(255, sector.lightLevel()));
+
+        // Map Doom sector light (0..255) -> MC light (0..15) using Chocolate Doom formula:
+        // lightnum = doom >> LIGHTSEGSHIFT (4). This produces 16 discrete levels.
+        int mc = (doom >> 4) & 0xF;
+
+        // Ensure a slightly larger baseline so very dark sectors still get minimal light (prevents pitch-black overlays).
+        final int MIN_MC_BASELINE = 3;
+        mc = Math.max(MIN_MC_BASELINE, mc);
+
+        int spacing = lightSpacing(mc);
+        if (spacing <= 0) spacing = 4;
+
+        // Primary placement on spacing grid
+        if (Math.floorMod(x, spacing) == 0 && Math.floorMod(z, spacing) == 0) {
+            BlockState lightState = LIGHT_BASE.with(Properties.LEVEL_15, mc);
+            placer.placeBlock(x, ceilingY, z, lightState);
             return;
         }
-        if (Math.floorMod(x, spacing) == 0 && Math.floorMod(z, spacing) == 0) {
-            placer.placeBlock(x, ceilingY, z, LIGHT_STATE);
+
+        // Secondary, lower-level filler lights at half-spacing to reduce completely dark gaps
+        int secondary = Math.max(1, spacing / 2);
+        if (Math.floorMod(x, secondary) == 0 && Math.floorMod(z, secondary) == 0) {
+            // Use a stronger filler value to avoid very dark pockets; keep at least 2.
+            int filler = Math.max(2, mc);
+            BlockState lightState = LIGHT_BASE.with(Properties.LEVEL_15, filler);
+            placer.placeBlock(x, ceilingY, z, lightState);
         }
     }
 
     private int lightSpacing(int mcLight) {
-        if (mcLight >= 14) {
-            return 10;
-        }
-        if (mcLight >= 12) {
-            return 14;
-        }
-        if (mcLight >= 10) {
-            return 18;
-        }
-        if (mcLight >= 8) {
-            return 26;
-        }
-        return -1;
+        // Prefer denser spacing for darker sectors to avoid large pitch-black gaps.
+        if (mcLight >= 14) return 10;
+        if (mcLight >= 12) return 8;
+        if (mcLight >= 10) return 6;
+        if (mcLight >= 8) return 5;
+        if (mcLight >= 6) return 4;
+        if (mcLight >= 4) return 3;
+        if (mcLight >= 2) return 2;
+        return 2;
     }
 
     private int toRelativeBlockX(int doomX, int originBlockX) {

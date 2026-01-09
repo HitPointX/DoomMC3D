@@ -14,6 +14,9 @@ import net.minecraft.text.Text;
 import net.minecraft.util.math.Box;
 
 import com.hitpo.doommc3d.player.DoomAmmoAccess;
+import com.hitpo.doommc3d.util.DebugLogger;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import com.hitpo.doommc3d.net.PickupPayload;
 import com.hitpo.doommc3d.player.DoomAmmo;
 import com.hitpo.doommc3d.player.DoomAmmoType;
 
@@ -62,7 +65,7 @@ public final class DoomPickupSystem {
 
     private static void tryPickup(ServerWorld world, ServerPlayerEntity player) {
         Box box = player.getBoundingBox().expand(1.2, 1.0, 1.2);
-        var pickups = world.getEntitiesByType(EntityType.ITEM_DISPLAY, box, entity -> entity.getCommandTags().contains("doommc3d_weapon_pickup"));
+        var pickups = world.getEntitiesByType(EntityType.ITEM_DISPLAY, box, entity -> true);
         if (pickups.isEmpty()) {
             return;
         }
@@ -73,6 +76,9 @@ public final class DoomPickupSystem {
             }
 
             var tags = display.getCommandTags();
+                DebugLogger.debugThrottled("DoomPickupSystem.tryPickup", 200, () ->
+                        "[DoomPickupSystem] tryPickup: player=" + player.getName().getString() + " pos=(" + player.getX() + "," + player.getY() + "," + player.getZ() + ") displayTags=" + tags + " dist=" + Math.sqrt(display.squaredDistanceTo(player)) + " hasAmmoAccess=" + (player instanceof DoomAmmoAccess)
+                );
             boolean consumed = false;
 
             if (containsAny(tags, HEALTH_TAGS)) {
@@ -101,7 +107,7 @@ public final class DoomPickupSystem {
             float target = Math.min(current + 1.0f, 200.0f);
             if (target <= current) return false;
             player.setHealth(target);
-            player.sendMessage(Text.literal("Health Bonus"), true);
+            ServerPlayNetworking.send(player, new PickupPayload("Health Bonus", 0xFFCC4444, 80));
             return true;
         }
 
@@ -109,7 +115,7 @@ public final class DoomPickupSystem {
             if (current >= 100.0f) return false;
             float target = Math.min(current + 10.0f, Math.min(max, 100.0f));
             player.setHealth(target);
-            player.sendMessage(Text.literal("Picked up a Stimpack"), true);
+            ServerPlayNetworking.send(player, new PickupPayload("Picked up a Stimpack", 0xFFCC4444, 80));
             return true;
         }
 
@@ -117,7 +123,7 @@ public final class DoomPickupSystem {
             if (current >= 100.0f) return false;
             float target = Math.min(current + 25.0f, Math.min(max, 100.0f));
             player.setHealth(target);
-            player.sendMessage(Text.literal("Picked up a Medikit"), true);
+            ServerPlayNetworking.send(player, new PickupPayload("Picked up a Medikit", 0xFFCC4444, 80));
             return true;
         }
 
@@ -126,7 +132,7 @@ public final class DoomPickupSystem {
             if (target <= current) return false;
             ensureHealthCap(player, 200.0f);
             player.setHealth(target);
-            player.sendMessage(Text.literal("Soul Sphere!"), true);
+            ServerPlayNetworking.send(player, new PickupPayload("Soul Sphere!", 0xFFCC4444, 100));
             return true;
         }
 
@@ -134,7 +140,7 @@ public final class DoomPickupSystem {
             ensureHealthCap(player, 200.0f);
             player.setHealth(200.0f);
             setArmor(player, 200.0);
-            player.sendMessage(Text.literal("Megasphere!"), true);
+            ServerPlayNetworking.send(player, new PickupPayload("Megasphere!", 0xFFCC4444, 120));
             return true;
         }
 
@@ -148,21 +154,21 @@ public final class DoomPickupSystem {
             double target = Math.min(armor + 1.0, 200.0);
             if (target <= armor) return false;
             setArmor(player, target);
-            player.sendMessage(Text.literal("Armor Bonus"), true);
+            ServerPlayNetworking.send(player, new PickupPayload("Armor Bonus", 0xFF44CCCC, 80));
             return true;
         }
 
         if (tags.contains("doommc3d_green_armor")) {
             if (armor >= 100.0) return false;
             setArmor(player, 100.0);
-            player.sendMessage(Text.literal("Green Armor"), true);
+            ServerPlayNetworking.send(player, new PickupPayload("Green Armor", 0xFF44CCCC, 80));
             return true;
         }
 
         if (tags.contains("doommc3d_blue_armor")) {
             if (armor >= 200.0) return false;
             setArmor(player, 200.0);
-            player.sendMessage(Text.literal("Blue Armor"), true);
+            ServerPlayNetworking.send(player, new PickupPayload("Blue Armor", 0xFF44CCCC, 80));
             return true;
         }
 
@@ -193,7 +199,7 @@ public final class DoomPickupSystem {
             int afterC = ammo.addDoomAmmo(DoomAmmoType.CELL, DoomAmmo.getClipAmount(DoomAmmoType.CELL));
             changed |= (afterB != beforeB) || (afterS != beforeS) || (afterR != beforeR) || (afterC != beforeC);
 
-            if (changed) player.sendMessage(Text.literal("Backpack full of ammo!"), true);
+            if (changed) ServerPlayNetworking.send(player, new PickupPayload("Backpack full of ammo!", 0xFFCCCC44, 100));
             return changed;
         }
 
@@ -201,42 +207,42 @@ public final class DoomPickupSystem {
             int before = ammo.getDoomAmmo(DoomAmmoType.BULLET);
             int after = ammo.addDoomAmmo(DoomAmmoType.BULLET, DoomAmmo.getClipAmount(DoomAmmoType.BULLET));
             changed |= after != before;
-            if (changed) player.sendMessage(Text.literal("Bullets +10"), true);
+            if (changed) ServerPlayNetworking.send(player, new PickupPayload("Bullets +10", 0xFFCCCC44, 80));
         } else if (tags.contains("doommc3d_ammo_box_bullets")) {
             int before = ammo.getDoomAmmo(DoomAmmoType.BULLET);
             int after = ammo.addDoomAmmo(DoomAmmoType.BULLET, DoomAmmo.getClipAmount(DoomAmmoType.BULLET) * 5);
             changed |= after != before;
-            if (changed) player.sendMessage(Text.literal("Bullets +50"), true);
+            if (changed) ServerPlayNetworking.send(player, new PickupPayload("Bullets +50", 0xFFCCCC44, 80));
         } else if (tags.contains("doommc3d_ammo_shell")) {
             int before = ammo.getDoomAmmo(DoomAmmoType.SHELL);
             int after = ammo.addDoomAmmo(DoomAmmoType.SHELL, DoomAmmo.getClipAmount(DoomAmmoType.SHELL));
             changed |= after != before;
-            if (changed) player.sendMessage(Text.literal("Shells +4"), true);
+            if (changed) ServerPlayNetworking.send(player, new PickupPayload("Shells +4", 0xFFCCCC44, 80));
         } else if (tags.contains("doommc3d_ammo_box_shells")) {
             int before = ammo.getDoomAmmo(DoomAmmoType.SHELL);
             int after = ammo.addDoomAmmo(DoomAmmoType.SHELL, DoomAmmo.getClipAmount(DoomAmmoType.SHELL) * 5);
             changed |= after != before;
-            if (changed) player.sendMessage(Text.literal("Shells +20"), true);
+            if (changed) ServerPlayNetworking.send(player, new PickupPayload("Shells +20", 0xFFCCCC44, 80));
         } else if (tags.contains("doommc3d_ammo_rocket")) {
             int before = ammo.getDoomAmmo(DoomAmmoType.ROCKET);
             int after = ammo.addDoomAmmo(DoomAmmoType.ROCKET, DoomAmmo.getClipAmount(DoomAmmoType.ROCKET));
             changed |= after != before;
-            if (changed) player.sendMessage(Text.literal("Rockets +1"), true);
+            if (changed) ServerPlayNetworking.send(player, new PickupPayload("Rockets +1", 0xFFCCCC44, 80));
         } else if (tags.contains("doommc3d_ammo_box_rockets")) {
             int before = ammo.getDoomAmmo(DoomAmmoType.ROCKET);
             int after = ammo.addDoomAmmo(DoomAmmoType.ROCKET, DoomAmmo.getClipAmount(DoomAmmoType.ROCKET) * 5);
             changed |= after != before;
-            if (changed) player.sendMessage(Text.literal("Rockets +5"), true);
+            if (changed) ServerPlayNetworking.send(player, new PickupPayload("Rockets +5", 0xFFCCCC44, 80));
         } else if (tags.contains("doommc3d_ammo_cell")) {
             int before = ammo.getDoomAmmo(DoomAmmoType.CELL);
             int after = ammo.addDoomAmmo(DoomAmmoType.CELL, DoomAmmo.getClipAmount(DoomAmmoType.CELL));
             changed |= after != before;
-            if (changed) player.sendMessage(Text.literal("Cells +20"), true);
+            if (changed) ServerPlayNetworking.send(player, new PickupPayload("Cells +20", 0xFFCCCC44, 80));
         } else if (tags.contains("doommc3d_ammo_cell_pack")) {
             int before = ammo.getDoomAmmo(DoomAmmoType.CELL);
             int after = ammo.addDoomAmmo(DoomAmmoType.CELL, DoomAmmo.getClipAmount(DoomAmmoType.CELL) * 5);
             changed |= after != before;
-            if (changed) player.sendMessage(Text.literal("Cells +100"), true);
+            if (changed) ServerPlayNetworking.send(player, new PickupPayload("Cells +100", 0xFFCCCC44, 80));
         }
 
         return changed;

@@ -44,6 +44,7 @@ public class DoomGenCommand {
         ItemStack pistol = new ItemStack(ModItems.DOOM_PISTOL);
         if (!player.getInventory().contains(pistol)) {
             player.giveItemStack(pistol);
+            com.hitpo.doommc3d.util.DebugLogger.debug("DoomGenCommand", () -> "[DoomMC3D] giveStartingPistol: gave pistol to " + player.getName().getString());
         }
         setDoomStartingHealth(player);
         player.addCommandTag("doommc3d_active");
@@ -51,6 +52,8 @@ public class DoomGenCommand {
         for (int slot = 0; slot < 9; slot++) {
             if (player.getInventory().getStack(slot).isOf(ModItems.DOOM_PISTOL)) {
                 player.getInventory().setSelectedSlot(slot);
+                final String slotMsg = "[DoomMC3D] giveStartingPistol: selected hotbar slot " + slot + " for " + player.getName().getString();
+                com.hitpo.doommc3d.util.DebugLogger.debug("DoomGenCommand", () -> slotMsg);
                 break;
             }
         }

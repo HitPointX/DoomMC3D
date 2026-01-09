@@ -86,7 +86,7 @@ public final class DoomTriggerPlacer {
         world.setBlockState(leverPos, leverState, 3);
 
         DoomTriggerRegistry.registerUse(world, leverPos, new DoomTriggerInfo(new DoomTriggerAction.ExitNextMap(), true, 10));
-        System.out.println("[DoomMC3D] Placed exit lever at " + leverPos + " facing " + facing);
+        com.hitpo.doommc3d.util.DebugLogger.debug("DoomTriggerPlacer", () -> "[DoomMC3D] Placed exit lever at " + leverPos + " facing " + facing);
     }
 
     private static int getSectorFromSide(Sidedef[] sidedefs, int sideIndex) {

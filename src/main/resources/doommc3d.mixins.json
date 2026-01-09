@@ -7,7 +7,10 @@
     "EntityDoomAmmoNbtMixin",
     "PlayerEntityAmmoMixin",
     "LivingEntityDropMixin",
-    "MobEntityAccessor"
+    "MobEntityAccessor",
+    
+    "EntityDoomCorpseNbtMixin",
+    "DisplayEntityCorpseMixin"
   ],
   "client": [
     "InGameHudMixin",

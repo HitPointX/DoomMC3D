@@ -53,8 +53,10 @@ public final class DoomWadSpriteCache {
             return sprite;
         } catch (Exception e) {
             if (LOGGED_ERROR.compareAndSet(false, true)) {
-                System.err.println("[DoomMC3D] Failed to load DOOM patch '" + key + "' from " + wad.getSource());
-                e.printStackTrace();
+                com.hitpo.doommc3d.util.DebugLogger.debug("DoomWadSpriteCache.error", () -> {
+                    e.printStackTrace();
+                    return "[DoomMC3D] Failed to load DOOM patch '" + key + "' from " + wad.getSource();
+                });
             }
             return null;
         }

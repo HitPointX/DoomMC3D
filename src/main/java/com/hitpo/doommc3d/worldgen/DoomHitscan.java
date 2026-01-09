@@ -34,6 +34,8 @@ import net.minecraft.text.Text;
 import java.util.ArrayDeque;
 import java.util.HashSet;
 import java.util.Set;
+import com.hitpo.doommc3d.doomai.DoomMobTags;
+import com.hitpo.doommc3d.doomai.DoomMobType;
 
 public final class DoomHitscan {
     private DoomHitscan() {
@@ -144,7 +146,29 @@ public final class DoomHitscan {
      * Slightly different spread than player weapons.
      */
     private static float getMonsterHitscanDamage(Random random) {
-        // Monsters hit slightly less accurate
+        // Default monster hitscan damage: bullets/pellets use rollBulletDamage
+        return rollBulletDamage(random);
+    }
+
+    private static float getMonsterHitscanDamageForType(Random random, LivingEntity attacker) {
+        // Map Doom mob types to their classic hitscan damage dice where applicable.
+        // Falls back to rollBulletDamage for standard hitscan bullets.
+        for (com.hitpo.doommc3d.doomai.DoomMobType t : com.hitpo.doommc3d.doomai.DoomMobType.values()) {
+            if (attacker.getCommandTags().contains(com.hitpo.doommc3d.doomai.DoomMobTags.tagForType(t))) {
+                return switch (t) {
+                    // Zombieman / Shotgun guy / Chaingunner hitscan bullets use Doom's
+                    // ((P_Random()%5)+1)*3 formula per pellet (values: 3,6,9,12,15)
+                    case ZOMBIEMAN, SHOTGUN_GUY, CHAINGUNNER -> ((random.nextInt(5) + 1) * 3);
+                    // Other monsters either use projectile attacks or different melee formulas;
+                    // fall back to reasonable approximations when necessary.
+                    case IMP -> rollBulletDamage(random);
+                    case DEMON, SPECTRE -> 10 * (1 + random.nextInt(4));
+                    case LOST_SOUL -> (random.nextInt(8) + 1) * 3; // 1d8*3 -> 3-24 approximating 3d8
+                    case CACODEMON -> rollBulletDamage(random);
+                    case BARON -> 8 * (1 + random.nextInt(8));
+                };
+            }
+        }
         return rollBulletDamage(random);
     }
 
@@ -359,15 +383,57 @@ public final class DoomHitscan {
         if (toTarget.lengthSquared() < 0.0001) {
             return;
         }
+        // Determine attacker accuracy (degrees) based on Doom mob type tag
+        double accuracyDeg = 0.0;
+        for (DoomMobType t : DoomMobType.values()) {
+            if (attacker.getCommandTags().contains(DoomMobTags.tagForType(t))) {
+                switch (t) {
+                    case ZOMBIEMAN -> accuracyDeg = 7.5;   // ~6-8 deg
+                    case SHOTGUN_GUY -> accuracyDeg = 8.5; // ~7-10 deg
+                    case CHAINGUNNER -> accuracyDeg = 4.0; // ~3-5 deg
+                    case IMP -> accuracyDeg = 6.0;
+                    case DEMON, SPECTRE -> accuracyDeg = 5.0;
+                    case LOST_SOUL -> accuracyDeg = 6.0;
+                    case CACODEMON -> accuracyDeg = 5.5;
+                    case BARON -> accuracyDeg = 4.5;
+                }
+                break;
+            }
+        }
 
         for (int i = 0; i < bullets; i++) {
-            Vec3d dir = toTarget.normalize();
-            // Doom-ish inaccuracy: small random angular spread.
-            dir = dir.add(
-                (attacker.getRandom().nextDouble() - 0.5) * spread,
-                (attacker.getRandom().nextDouble() - 0.5) * spread,
-                (attacker.getRandom().nextDouble() - 0.5) * spread
-            ).normalize();
+            // Compute base yaw/pitch toward target
+            Vec3d dirTo = toTarget.normalize();
+            double dx = dirTo.x;
+            double dy = dirTo.y;
+            double dz = dirTo.z;
+            double yawDeg = Math.toDegrees(Math.atan2(dz, dx)) - 90.0;
+            double pitchDeg = -Math.toDegrees(Math.atan2(dy, Math.sqrt(dx * dx + dz * dz)));
+
+            // Apply Doom-like angle jitter using P_Random()-based triangular distribution
+            // This mirrors: angle += (P_Random() - P_Random()) << 20
+            double yawJitter = doomSpreadYawDegrees(attacker.getRandom());
+            double pitchJitter = doomSpreadYawDegrees(attacker.getRandom()) * 0.5;
+
+            double finalYaw = yawDeg + yawJitter;
+            double finalPitch = pitchDeg + pitchJitter;
+
+            Vec3d dir = rotationVector((float) finalYaw, (float) finalPitch).normalize();
+
+            // Distance-based accuracy scaling: farther targets suffer larger angular misses.
+            double dist = toTarget.length();
+            double rangeClamped = Math.max(1.0, range);
+            double distanceFactor = MathHelper.clamp(1.0 - (dist / rangeClamped), 0.15, 1.0);
+            // Reduce effective accuracy (increase jitter) at longer ranges
+            if (distanceFactor < 1.0 && accuracyDeg > 0.0) {
+                double scale = 1.0 / distanceFactor; // larger at long range
+                // Reapply jitter scaled by distance
+                double scaledYawJitter = yawJitter * scale;
+                double scaledPitchJitter = pitchJitter * scale;
+                double finalYawScaled = yawDeg + scaledYawJitter;
+                double finalPitchScaled = pitchDeg + scaledPitchJitter;
+                dir = rotationVector((float) finalYawScaled, (float) finalPitchScaled).normalize();
+            }
 
             Vec3d end = start.add(dir.multiply(range));
             BlockHitResult blockHit = world.raycast(new RaycastContext(start, end, RaycastContext.ShapeType.OUTLINE, RaycastContext.FluidHandling.NONE, attacker));
@@ -378,8 +444,9 @@ public final class DoomHitscan {
             }
             Box box = attacker.getBoundingBox().stretch(dir.multiply(range)).expand(1.0);
             EntityHitResult entityHit = ProjectileUtil.raycast(attacker, start, end, box, entity -> entity != attacker && entity instanceof LivingEntity living && living.isAlive(), maxDistSq);
-            if (entityHit != null && entityHit.getEntity() instanceof LivingEntity living) {
-                float damage = getMonsterHitscanDamage(attacker.getRandom());
+                if (entityHit != null && entityHit.getEntity() instanceof LivingEntity living) {
+                float damage = getMonsterHitscanDamageForType(attacker.getRandom(), attacker);
+                // Simple damage application (limb/gib system disabled)
                 living.damage(world, attacker.getDamageSources().mobAttack(attacker), damage);
                 // Visual feedback for hit
                 world.spawnParticles(ParticleTypes.CRIT, entityHit.getPos().x, entityHit.getPos().y, entityHit.getPos().z, 6, 0.1, 0.1, 0.1, 0.05);
@@ -393,6 +460,7 @@ public final class DoomHitscan {
             }
         }
     }
+        
 
     public static boolean firePistol(ServerPlayerEntity player) {
         if (!player.getCommandTags().contains("doommc3d_active")) {

@@ -57,6 +57,20 @@ public final class ModEntities {
             .build(DOOM_PLASMA_KEY)
     );
 
+    private static final Identifier DOOM_LIFT_PLATFORM_ID = Identifier.of(DoomMC3D.MOD_ID, "lift_platform");
+    private static final RegistryKey<EntityType<?>> DOOM_LIFT_PLATFORM_KEY = RegistryKey.of(RegistryKeys.ENTITY_TYPE, DOOM_LIFT_PLATFORM_ID);
+
+    public static final EntityType<com.hitpo.doommc3d.entity.LiftPlatformEntity> LIFT_PLATFORM = Registry.register(
+        Registries.ENTITY_TYPE,
+        DOOM_LIFT_PLATFORM_ID,
+        FabricEntityTypeBuilder.<com.hitpo.doommc3d.entity.LiftPlatformEntity>create(SpawnGroup.MISC, com.hitpo.doommc3d.entity.LiftPlatformEntity::new)
+            .dimensions(EntityDimensions.fixed(1.0f, 0.25f))
+            .trackRangeBlocks(64)
+            .trackedUpdateRate(10)
+            .build(DOOM_LIFT_PLATFORM_KEY)
+    );
+
+
     public static void init() {
         // Force class-load.
     }

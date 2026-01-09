@@ -45,11 +45,13 @@ public class DoomSoundLoader {
             soundCacheDir = gameDir.resolve("extracted_sounds");
             Files.createDirectories(soundCacheDir);
             
-            System.out.println("[DoomMC3D] Sound cache directory: " + soundCacheDir);
-            System.out.println("[DoomMC3D] NOTE: Sounds must be manually copied to src/main/resources/assets/doommc3d/sounds/ and rebuilt");
+            com.hitpo.doommc3d.util.DebugLogger.debug("DoomSoundLoader.init", () -> "[DoomMC3D] Sound cache directory: " + soundCacheDir);
+            com.hitpo.doommc3d.util.DebugLogger.debug("DoomSoundLoader.init", () -> "[DoomMC3D] NOTE: Sounds must be manually copied to src/main/resources/assets/doommc3d/sounds/ and rebuilt");
         } catch (Exception e) {
-            System.err.println("[DoomMC3D] Failed to create sound cache directory: " + e.getMessage());
-            e.printStackTrace();
+            com.hitpo.doommc3d.util.DebugLogger.debug("DoomSoundLoader.init.error", () -> {
+                e.printStackTrace();
+                return "[DoomMC3D] Failed to create sound cache directory: " + e.getMessage();
+            });
         }
     }
     
@@ -59,7 +61,7 @@ public class DoomSoundLoader {
      */
     public static void extractAllSounds() {
         if (soundCacheDir == null) {
-            System.err.println("[DoomMC3D] Sound cache not initialized!");
+            com.hitpo.doommc3d.util.DebugLogger.debug("DoomSoundLoader", () -> "[DoomMC3D] Sound cache not initialized!");
             return;
         }
         
@@ -67,18 +69,18 @@ public class DoomSoundLoader {
         try {
             wad = WadRepository.getOrLoad(null);
         } catch (Exception e) {
-            System.err.println("[DoomMC3D] Failed to load WAD for sound extraction: " + e.getMessage());
+            com.hitpo.doommc3d.util.DebugLogger.debug("DoomSoundLoader", () -> "[DoomMC3D] Failed to load WAD for sound extraction: " + e.getMessage());
             return;
         }
         
         if (wad == null) {
-            System.err.println("[DoomMC3D] No WAD loaded, cannot extract sounds");
+            com.hitpo.doommc3d.util.DebugLogger.debug("DoomSoundLoader", () -> "[DoomMC3D] No WAD loaded, cannot extract sounds");
             return;
         }
         
         int extracted = 0;
         int skipped = 0;
-        System.out.println("[DoomMC3D] Extracting Doom sounds from WAD: " + wad.getSource());
+        com.hitpo.doommc3d.util.DebugLogger.debug("DoomSoundLoader.extract", () -> "[DoomMC3D] Extracting Doom sounds from WAD: " + wad.getSource());
         
         for (WadDirectoryEntry entry : wad.getDirectory()) {
             String name = entry.getName();
@@ -100,22 +102,25 @@ public class DoomSoundLoader {
                     if (convertDoomSoundToWav(lumpData, outputFile)) {
                         SOUND_CACHE.put(soundName, outputFile);
                         extracted++;
-                        System.out.println("[DoomMC3D]   Extracted: " + soundName + " -> " + outputFile.getFileName());
+                        com.hitpo.doommc3d.util.DebugLogger.debug("DoomSoundLoader.extract", () -> "[DoomMC3D]   Extracted: " + soundName + " -> " + outputFile.getFileName());
                     }
                 } catch (Exception e) {
-                    System.err.println("[DoomMC3D] Failed to extract sound " + name + ": " + e.getMessage());
-                    e.printStackTrace();
+                    com.hitpo.doommc3d.util.DebugLogger.debug("DoomSoundLoader.extract.error", () -> {
+                        e.printStackTrace();
+                        return "[DoomMC3D] Failed to extract sound " + name + ": " + e.getMessage();
+                    });
                 }
             }
         }
-        
-        System.out.println("[DoomMC3D] Sound extraction complete:");
-        System.out.println("[DoomMC3D]   Newly extracted: " + extracted);
-        System.out.println("[DoomMC3D]   Already cached: " + skipped);
-        System.out.println("[DoomMC3D]   Total available: " + SOUND_CACHE.size());
-        System.out.println("[DoomMC3D]   Cache directory: " + soundCacheDir);
+        com.hitpo.doommc3d.util.DebugLogger.debug("DoomSoundLoader.extract", () -> "[DoomMC3D] Sound extraction complete:");
+                final String newlyMsg = "[DoomMC3D]   Newly extracted: " + extracted;
+                final String cachedMsg = "[DoomMC3D]   Already cached: " + skipped;
+                com.hitpo.doommc3d.util.DebugLogger.debug("DoomSoundLoader.extract", () -> newlyMsg);
+                com.hitpo.doommc3d.util.DebugLogger.debug("DoomSoundLoader.extract", () -> cachedMsg);
+        com.hitpo.doommc3d.util.DebugLogger.debug("DoomSoundLoader.extract", () -> "[DoomMC3D]   Total available: " + SOUND_CACHE.size());
+        com.hitpo.doommc3d.util.DebugLogger.debug("DoomSoundLoader.extract", () -> "[DoomMC3D]   Cache directory: " + soundCacheDir);
         if (!SOUND_CACHE.isEmpty()) {
-            System.out.println("[DoomMC3D]   Sample sounds: " + 
+            com.hitpo.doommc3d.util.DebugLogger.debug("DoomSoundLoader.extract", () -> "[DoomMC3D]   Sample sounds: " + 
                 SOUND_CACHE.keySet().stream().limit(10).toList());
         }
     }
@@ -181,7 +186,7 @@ public class DoomSoundLoader {
             
             return true;
         } catch (Exception e) {
-            System.err.println("[DoomMC3D] Error converting sound to WAV: " + e.getMessage());
+            com.hitpo.doommc3d.util.DebugLogger.debug("DoomSoundLoader.convert.error", () -> "[DoomMC3D] Error converting sound to WAV: " + e.getMessage());
             return false;
         }
     }

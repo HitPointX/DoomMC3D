@@ -124,7 +124,7 @@ public final class DoomLineTriggerPlacer {
 
         DoomLineTriggerRegistry.clear(world);
         DoomLineTriggerRegistry.set(world, triggers);
-        System.out.println("[DoomMC3D] Registered " + triggers.size() + " line triggers (Task #5: Extended Triggers)");
+        com.hitpo.doommc3d.util.DebugLogger.debug("DoomLineTriggerPlacer", () -> "[DoomMC3D] Registered " + triggers.size() + " line triggers (Task #5: Extended Triggers)");
     }
 
     /**

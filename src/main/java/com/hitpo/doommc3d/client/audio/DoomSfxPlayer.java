@@ -31,11 +31,11 @@ public final class DoomSfxPlayer {
 
     public static void playAt(String lumpName, double x, double y, double z, float volume, float pitch) {
         if (lumpName == null || lumpName.isBlank()) {
-            System.out.println("[DoomSfxPlayer] ERROR: lumpName is null or blank");
+            com.hitpo.doommc3d.util.DebugLogger.debug("DoomSfxPlayer", () -> "[DoomSfxPlayer] ERROR: lumpName is null or blank");
             return;
         }
 
-        System.out.println("[DoomSfxPlayer] Attempting to play: " + lumpName + " at (" + x + ", " + y + ", " + z + ")");
+        com.hitpo.doommc3d.util.DebugLogger.debugThrottled("DoomSfxPlayer.attempt", 300, () -> "[DoomSfxPlayer] Attempting to play: " + lumpName + " at (" + x + ", " + y + ", " + z + ")");
 
         // Ensure we only touch OpenAL on the render/client thread.
         MinecraftClient client = MinecraftClient.getInstance();
@@ -47,16 +47,16 @@ public final class DoomSfxPlayer {
         try {
             Integer bufferId = BUFFERS_BY_LUMP.get(normalize(lumpName));
             if (bufferId == null) {
-                System.out.println("[DoomSfxPlayer] Loading lump: " + lumpName);
+                com.hitpo.doommc3d.util.DebugLogger.debug("DoomSfxPlayer.loading", () -> "[DoomSfxPlayer] Loading lump: " + lumpName);
                 bufferId = loadToOpenAlBuffer(lumpName);
                 if (bufferId == null) {
-                    System.out.println("[DoomSfxPlayer] ERROR: Failed to load lump: " + lumpName);
+                    com.hitpo.doommc3d.util.DebugLogger.debug("DoomSfxPlayer.loading.error", () -> "[DoomSfxPlayer] ERROR: Failed to load lump: " + lumpName);
                     return;
                 }
                 BUFFERS_BY_LUMP.put(normalize(lumpName), bufferId);
-                System.out.println("[DoomSfxPlayer] Successfully loaded and cached: " + lumpName);
+                com.hitpo.doommc3d.util.DebugLogger.debug("DoomSfxPlayer.loading", () -> "[DoomSfxPlayer] Successfully loaded and cached: " + lumpName);
             } else {
-                System.out.println("[DoomSfxPlayer] Using cached buffer for: " + lumpName);
+                com.hitpo.doommc3d.util.DebugLogger.debugThrottled("DoomSfxPlayer.cache", 500, () -> "[DoomSfxPlayer] Using cached buffer for: " + lumpName);
             }
 
             // ====== DOOM-STYLE 2D AUDIO ======
@@ -76,7 +76,8 @@ public final class DoomSfxPlayer {
                     // Sound at or very near player position - no panning, full volume
                     pan = 0.0f;
                     vol = 1.0;
-                    System.out.println("[DoomSfxPlayer] Player weapon sound (centered, dist=" + String.format("%.2f", dist) + ")");
+                    final double dDist = dist;
+                    com.hitpo.doommc3d.util.DebugLogger.debugThrottled("DoomSfxPlayer.playerweapon", 500, () -> "[DoomSfxPlayer] Player weapon sound (centered, dist=" + String.format("%.2f", dDist) + ")");
                 } else {
                     // External sound source: apply Doom-style positioning
                     
@@ -110,23 +111,22 @@ public final class DoomSfxPlayer {
                         vol = vol * vol;  // Doom-ish curve (slightly steeper falloff)
                     }
                     
-                    System.out.printf(
-                        "[DoomSfxPlayer] right=%.2f forward=%.2f ang=%.2f sep=%d pan=%.2f dist=%.2f vol=%.2f%n",
-                        right, forward, ang, sep, pan, dist, vol
-                    );
+                    final String posMsg = String.format("[DoomSfxPlayer] right=%.2f forward=%.2f ang=%.2f sep=%d pan=%.2f dist=%.2f vol=%.2f", right, forward, ang, sep, pan, dist, vol);
+                    com.hitpo.doommc3d.util.DebugLogger.debugThrottled("DoomSfxPlayer.position", 500, () -> posMsg);
                 }
             }
             
             // Skip silent sounds
             if (vol <= 0.0) {
-                System.out.println("[DoomSfxPlayer] Sound too far away, skipping");
+                com.hitpo.doommc3d.util.DebugLogger.debugThrottled("DoomSfxPlayer.skipFar", 500, () -> "[DoomSfxPlayer] Sound too far away, skipping");
                 return;
             }
             
             int sourceId = AL10.alGenSources();
             int err = AL10.alGetError();
             if (err != AL10.AL_NO_ERROR) {
-                System.err.println("[DoomSfxPlayer] OpenAL error creating source: " + err);
+                final String createErrMsg = "[DoomSfxPlayer] OpenAL error creating source: " + err;
+                com.hitpo.doommc3d.util.DebugLogger.debug("DoomSfxPlayer.openal", () -> createErrMsg);
                 return;
             }
             
@@ -145,16 +145,19 @@ public final class DoomSfxPlayer {
             AL10.alSourcePlay(sourceId);
             err = AL10.alGetError();
             if (err != AL10.AL_NO_ERROR) {
-                System.err.println("[DoomSfxPlayer] OpenAL error playing source: " + err);
+                final String playErrMsg = "[DoomSfxPlayer] OpenAL error playing source: " + err;
+                com.hitpo.doommc3d.util.DebugLogger.debug("DoomSfxPlayer.openal", () -> playErrMsg);
                 AL10.alDeleteSources(sourceId);
                 return;
             }
             
             ACTIVE_SOURCES.add(sourceId);
-            System.out.println("[DoomSfxPlayer] Playing sound, source ID: " + sourceId);
+            com.hitpo.doommc3d.util.DebugLogger.debugThrottled("DoomSfxPlayer.playing", 500, () -> "[DoomSfxPlayer] Playing sound, source ID: " + sourceId);
         } catch (Throwable t) {
-            System.err.println("[DoomSfxPlayer] ERROR playing sound: " + lumpName);
-            t.printStackTrace();
+            com.hitpo.doommc3d.util.DebugLogger.debug("DoomSfxPlayer.error", () -> {
+                t.printStackTrace();
+                return "[DoomSfxPlayer] ERROR playing sound: " + lumpName;
+            });
         }
     }
 
@@ -193,12 +196,12 @@ public final class DoomSfxPlayer {
         try {
             wad = WadRepository.getOrLoad(null);
         } catch (IOException e) {
-            System.err.println("[DoomSfxPlayer] ERROR: Failed to load WAD: " + e.getMessage());
+            com.hitpo.doommc3d.util.DebugLogger.debug("DoomSfxPlayer.wad", () -> "[DoomSfxPlayer] ERROR: Failed to load WAD: " + e.getMessage());
             return null;
         }
 
         String target = normalize(lumpName);
-        System.out.println("[DoomSfxPlayer] Searching for lump: " + target);
+        com.hitpo.doommc3d.util.DebugLogger.debug("DoomSfxPlayer.search", () -> "[DoomSfxPlayer] Searching for lump: " + target);
         WadDirectoryEntry entry = null;
         for (WadDirectoryEntry e : wad.getDirectory()) {
             if (normalize(e.getName()).equals(target)) {
@@ -207,16 +210,21 @@ public final class DoomSfxPlayer {
             }
         }
         if (entry == null) {
-            System.out.println("[DoomSfxPlayer] ERROR: Lump not found: " + target);
-            System.out.println("[DoomSfxPlayer] Available DS lumps:");
-            for (WadDirectoryEntry e : wad.getDirectory()) {
-                if (e.getName().toUpperCase().startsWith("DS")) {
-                    System.out.println("  - " + e.getName());
+            com.hitpo.doommc3d.util.DebugLogger.debug("DoomSfxPlayer.search", () -> "[DoomSfxPlayer] ERROR: Lump not found: " + target);
+            com.hitpo.doommc3d.util.DebugLogger.debug("DoomSfxPlayer.search", () -> {
+                StringBuilder sb = new StringBuilder();
+                sb.append("[DoomSfxPlayer] Available DS lumps:\n");
+                for (WadDirectoryEntry e : wad.getDirectory()) {
+                    if (e.getName().toUpperCase().startsWith("DS")) {
+                        sb.append("  - ").append(e.getName()).append('\n');
+                    }
                 }
-            }
+                return sb.toString();
+            });
             return null;
         }
-        System.out.println("[DoomSfxPlayer] Found lump: " + entry.getName() + " (" + entry.getSize() + " bytes)");
+                    final String foundLumpMsg = "[DoomSfxPlayer] Found lump: " + entry.getName() + " (" + entry.getSize() + " bytes)";
+                    com.hitpo.doommc3d.util.DebugLogger.debug("DoomSfxPlayer.search", () -> foundLumpMsg);
         return wad.readLump(entry);
     }
 
