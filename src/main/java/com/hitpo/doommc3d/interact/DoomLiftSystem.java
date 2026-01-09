@@ -224,13 +224,27 @@ public final class DoomLiftSystem {
                 + " topY=" + lift.topY
                 + " bottomY=" + lift.bottomY
                 + " bboxX=[" + minX + "," + maxX + "] bboxZ=[" + minZ + "," + maxZ + "]");
+            // Prefer sector polygon containment using Doom coordinates derived from the trigger
+            double doomX = lift.worldBlockToDoomX(triggerX);
+            double doomZ = lift.worldBlockToDoomZ(triggerZ);
+            if (Lift.containsPoint(lift.sectorPolygon, doomX, doomZ)) {
+                double playerFloorWorldY = activator.getBlockPos().getY() + 1.0;
+                double currentWorldY = lift.worldY(lift.currentY);
+                double offset = playerFloorWorldY - currentWorldY;
+                lift.setAnchorOffset(offset);
+                DebugLogger.debug("DoomLiftSystem.activate.anchor", () -> "[LiftDebug] matched by sector polygon; anchoring lift to trigger: playerFloorWorldY=" + playerFloorWorldY + " currentWorldY=" + currentWorldY + " offset=" + offset + " doom=(" + doomX + "," + doomZ + ")");
+                lift.activate(world);
+                anyMatched = true;
+                continue;
+            }
 
+            // Fall back to simple block-bbox check (useful for debugging)
             if (triggerX >= minX && triggerX <= maxX && triggerZ >= minZ && triggerZ <= maxZ) {
                 double playerFloorWorldY = activator.getBlockPos().getY() + 1.0;
                 double currentWorldY = lift.worldY(lift.currentY);
                 double offset = playerFloorWorldY - currentWorldY;
                 lift.setAnchorOffset(offset);
-                DebugLogger.debug("DoomLiftSystem.activate.anchor", () -> "[LiftDebug] anchoring lift to trigger: playerFloorWorldY=" + playerFloorWorldY + " currentWorldY=" + currentWorldY + " offset=" + offset);
+                DebugLogger.debug("DoomLiftSystem.activate.anchor", () -> "[LiftDebug] matched by bbox; anchoring lift to trigger: playerFloorWorldY=" + playerFloorWorldY + " currentWorldY=" + currentWorldY + " offset=" + offset);
                 lift.activate(world);
                 anyMatched = true;
             }
@@ -849,7 +863,7 @@ public final class DoomLiftSystem {
             return false;
         }
 
-        private static boolean containsPoint(List<com.hitpo.doommc3d.doommap.Vertex> polygon, double x, double y) {
+        public static boolean containsPoint(List<com.hitpo.doommc3d.doommap.Vertex> polygon, double x, double y) {
             boolean inside = false;
             for (int i = 0, j = polygon.size() - 1; i < polygon.size(); j = i++) {
                 var vi = polygon.get(i);
