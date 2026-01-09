@@ -25,3 +25,23 @@ __pycache__/
 
 # Misc cache
 .cache/
+
+# --- Gradle local cache ---
+.gradle/
+
+# --- Loom/Fabric run dir policy: keep logs+crashes+config, ignore worlds ---
+run/saves/
+run/world/
+run/mods/
+run/resourcepacks/
+
+# caches/noise (optional)
+run/usercache.json
+run/usernamecache.json
+run/options.txt
+run/optionsof.txt
+run/servers.dat
+run/server-resource-packs/
+
+# if you have other giant folders under run/
+run/.cache/
