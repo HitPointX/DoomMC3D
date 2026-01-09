@@ -139,6 +139,7 @@ public final class DoomLiftSystem {
         private int blockedTicks = 0;
         // Active platform entity for this lift while moving; null when idle.
         private com.hitpo.doommc3d.entity.LiftPlatformEntity activePlatform = null;
+        private boolean newFloorPlaced = false;
 
         public Lift(
             List<FloorCell> floor,
@@ -187,50 +188,58 @@ public final class DoomLiftSystem {
                 if (activePlatform.wasBlocked()) {
                     // Platform reported blocked during motion: avoid soft-locks by settling to IDLE
                     activePlatform = null;
+                    newFloorPlaced = false;
                     if (state == LiftState.MOVING_UP || state == LiftState.MOVING_DOWN) {
                         state = LiftState.IDLE;
                     }
                     return;
                 }
-                if (!activePlatform.isAlive()) {
-                    // Completed one step successfully. Commit the single-block move
-                    // immediately to avoid leaving the previous floor layer in place.
-                    int prevY = currentY;
-                    if (state == LiftState.MOVING_DOWN) {
-                        int nextY = currentY - 1;
-                        placeFloorLayer(world, nextY);
-                        clearFloorLayer(world, prevY);
-                        currentY = nextY;
 
-                        // If we've reached bottom, enter waiting and do endpoint cleanup.
+                // If the platform has arrived at its target, place the new floor layer now
+                // but do NOT clear the old floor until the platform is discarded. This
+                // avoids a one-tick hole where riders might fall through.
+                if (activePlatform.isArrived()) {
+                    int nextY = (state == LiftState.MOVING_DOWN) ? currentY - 1 : currentY + 1;
+                    if (!newFloorPlaced) {
+                        placeFloorLayer(world, nextY);
+                        // Snap riders onto the newly-placed floor so clients see them stable.
+                        List<Entity> ridersAfter = findRiders(world, nextY);
+                        snapPlayersToSurface(world, ridersAfter, nextY);
+                        newFloorPlaced = true;
+                    }
+                    // keep waiting for the platform to be discarded (it will discard after its arrived ticks)
+                    return;
+                }
+
+                // Platform finished and was discarded: now clear the old floor layer and advance state.
+                if (!activePlatform.isAlive()) {
+                    int prevY = currentY;
+                    int nextY = (state == LiftState.MOVING_DOWN) ? currentY - 1 : currentY + 1;
+
+                    // Clear old floor after new floor was already placed on arrival.
+                    clearFloorLayer(world, prevY);
+                    currentY = nextY;
+
+                    if (state == LiftState.MOVING_DOWN) {
                         if (currentY <= bottomY) {
                             state = LiftState.WAITING;
                             waitUntilTick = world.getTime() + waitTicks;
                             clearInteriorAir(world, currentY);
                             updateBoundaryWalls(world);
                         }
-
-                        // Snap riders to new surface after committing blocks.
-                        List<Entity> ridersAfter = findRiders(world, currentY);
-                        snapPlayersToSurface(world, ridersAfter, currentY);
-
                     } else if (state == LiftState.MOVING_UP) {
-                        int nextY = currentY + 1;
-                        placeFloorLayer(world, nextY);
-                        clearFloorLayer(world, prevY);
-                        currentY = nextY;
-
                         if (currentY >= topY) {
                             state = LiftState.IDLE;
                             clearInteriorAir(world, currentY);
                             updateBoundaryWalls(world);
                         }
-
-                        List<Entity> ridersAfter = findRiders(world, currentY);
-                        snapPlayersToSurface(world, ridersAfter, currentY);
                     }
 
+                    List<Entity> ridersAfter = findRiders(world, currentY);
+                    snapPlayersToSurface(world, ridersAfter, currentY);
+
                     activePlatform = null;
+                    newFloorPlaced = false;
                 }
                 return;
             }
@@ -314,9 +323,11 @@ public final class DoomLiftSystem {
             }
 
             // Success path: spawn an entity platform to carry riders reliably, then finalize blocks when it completes.
-            if (activePlatform != null) return true; // already running
+            // If a platform is already active, do not start another step this tick.
+            if (activePlatform != null) return false; // already running
             activePlatform = spawnLiftPlatform(world, fromY, toY);
             blockedTicks = 0;
+            newFloorPlaced = false;
 
             return true;
         }
@@ -425,8 +436,8 @@ public final class DoomLiftSystem {
             platform.initBounds(
                 minX, maxX,
                 minZ, maxZ,
-                fromY + 1.0,
-                toY + 1.0,
+                fromY,
+                toY,
                 speed
             );
 
@@ -443,7 +454,7 @@ public final class DoomLiftSystem {
 
             for (Entity e : riders) {
                 try {
-                    e.move(MovementType.PISTON, new Vec3d(0.0, delta, 0.0));
+                    e.move(MovementType.SHULKER, new Vec3d(0.0, delta, 0.0));
                 } catch (Throwable ignored) {}
 
                 double targetFeet = computeSurfaceTop(world, e, toY) + SEAT_EPS;
@@ -561,14 +572,13 @@ public final class DoomLiftSystem {
             List<Entity> riders = new ArrayList<>();
             for (Entity e : entities) {
                 double feet = e.getBoundingBox().minY;
-                boolean nearSurface =
-                    (feet <= platformTop + 0.08) && (feet >= platformTop - 0.65);
-
-                if (!nearSurface && !e.isOnGround()) continue;
+                double eps = 1e-3;
+                boolean nearSurface = (feet <= platformTop + eps) && (feet >= platformTop - 0.75);
+                if (!nearSurface) continue;
 
                 double entityX = e.getX();
                 double entityZ = e.getZ();
-                if (entityX < minX - 0.1 || entityX > maxX + 0.1 || entityZ < minZ - 0.1 || entityZ > maxZ + 0.1) continue;
+                if (entityX < minX - 0.05 || entityX > maxX + 0.05 || entityZ < minZ - 0.05 || entityZ > maxZ + 0.05) continue;
 
                 double doomX = toDoomX((int) Math.floor(entityX));
                 double doomZ = toDoomZ((int) Math.floor(entityZ));

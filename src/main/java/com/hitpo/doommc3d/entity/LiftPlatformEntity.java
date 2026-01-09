@@ -30,6 +30,8 @@ public class LiftPlatformEntity extends Entity {
     private boolean blocked = false;
     private int crushTicks = 0;
     private static final float CRUSH_DAMAGE = 6.0f; // tunable
+    private boolean arrived = false;
+    private int arrivedTicks = 0;
 
     private static final TrackedData<Float> TARGET_Y = DataTracker.registerData(LiftPlatformEntity.class, TrackedDataHandlerRegistry.FLOAT);
 
@@ -81,6 +83,27 @@ public class LiftPlatformEntity extends Entity {
         // Server-side: sync target Y to clients
         try { this.dataTracker.set(TARGET_Y, (float) this.targetY); } catch (Throwable ignored) {}
 
+        // If we've already arrived, remain alive for a couple ticks so riders can re-ground,
+        // then play arrival SFX and discard.
+        if (!getEntityWorld().isClient() && arrived) {
+            arrivedTicks++;
+            if (arrivedTicks >= 2) {
+                try {
+                    ServerWorld ssw = (ServerWorld) getEntityWorld();
+                    for (ServerPlayerEntity p : ssw.getPlayers()) {
+                        double dx = p.getX() - this.getX();
+                        double dz = p.getZ() - this.getZ();
+                        if (Math.hypot(dx, dz) <= 32.0) {
+                            try { ServerPlayNetworking.send(p, new PlayDoomSfxPayload("DSPSTOP", this.getX(), this.getY(), this.getZ(), 1.0f, 1.0f)); } catch (Throwable ignored) {}
+                        }
+                    }
+                } catch (Throwable ignored) {}
+                this.discard();
+                return;
+            }
+            // keep alive while riders re-ground
+        }
+
         double remaining = targetY - this.getY();
         double abs = Math.abs(remaining);
 
@@ -93,7 +116,7 @@ public class LiftPlatformEntity extends Entity {
         // Capture riders BEFORE the platform moves (piston semantics).
         // Treat 'touching' as a rider by using epsilon comparisons and feet checks.
         Box beforeBox = this.getBoundingBox();
-        Box riderQuery = beforeBox.expand(0.0, 0.6, 0.0);
+        Box riderQuery = beforeBox.expand(0.05, 0.75, 0.05);
         final double eps = 1e-3;
         List<Entity> riders = getEntityWorld().getOtherEntities(this, riderQuery, e -> {
             try {
@@ -104,12 +127,12 @@ public class LiftPlatformEntity extends Entity {
                     && eb.maxZ > beforeBox.minZ && eb.minZ < beforeBox.maxZ;
                 if (!xzOverlap) return false;
 
-                // Feet-on-top check: allow slight penetration/touching to count as standing
+                // Feet-on-top check: allow significant penetration below top to count as standing
                 double feet = eb.minY;
                 double top = beforeBox.maxY;
-                boolean onTop = feet >= top - 0.2 && feet <= top + eps;
+                boolean onTop = feet >= top - 0.75 && feet <= top + eps;
 
-                return onTop || e.isOnGround();
+                return onTop;
             } catch (Throwable t) {
                 return false;
             }
@@ -119,17 +142,30 @@ public class LiftPlatformEntity extends Entity {
         try { this.setPos(this.getX(), this.getY() + dy, this.getZ()); } catch (Throwable ignored) {}
         updateBoundingBox();
 
-        // Carry the captured riders by the same dy
+        // Explicitly move captured riders by dy. For players use network teleport to avoid desync.
         for (Entity e : riders) {
-            try { e.move(MovementType.PISTON, new Vec3d(0, dy, 0)); } catch (Throwable ignored) {}
-            e.fallDistance = 0.0f;
+            try {
+                if (e instanceof ServerPlayerEntity sp) {
+                    try { sp.networkHandler.requestTeleport(sp.getX(), sp.getY() + dy, sp.getZ(), sp.getYaw(), sp.getPitch()); } catch (Throwable ignored) {}
+                } else {
+                    try { e.setPos(e.getX(), e.getY() + dy, e.getZ()); } catch (Throwable ignored) {}
+                }
+            } catch (Throwable ignored) {}
+            try { e.fallDistance = 0.0f; } catch (Throwable ignored) {}
+            try { e.getClass().getMethod("setOnGround", boolean.class).invoke(e, true); } catch (Throwable ignored) {}
 
             // Ensure feet are not inside the platform slab - snap up if needed
             double platformTop = this.getBoundingBox().maxY;
             double feet = e.getBoundingBox().minY;
             if (feet < platformTop) {
                 double push = (platformTop - feet) + 1e-3;
-                try { e.move(MovementType.PISTON, new Vec3d(0, push, 0)); } catch (Throwable ignored) {}
+                try {
+                    if (e instanceof ServerPlayerEntity sp) {
+                        try { sp.networkHandler.requestTeleport(sp.getX(), sp.getY() + push, sp.getZ(), sp.getYaw(), sp.getPitch()); } catch (Throwable ignored) {}
+                    } else {
+                        try { e.setPos(e.getX(), e.getY() + push, e.getZ()); } catch (Throwable ignored) {}
+                    }
+                } catch (Throwable ignored) {}
             }
         }
 
@@ -144,7 +180,7 @@ public class LiftPlatformEntity extends Entity {
 
         if (crushing) {
             crushTicks++;
-            if (crushTicks >= CRUSH_DELAY) {
+                if (crushTicks >= CRUSH_DELAY) {
                 // apply damage and send sfx to overlapping players
                 try {
                     for (Entity e : getEntityWorld().getOtherEntities(this, this.getBoundingBox())) {
@@ -154,7 +190,7 @@ public class LiftPlatformEntity extends Entity {
                             }
                         } catch (Throwable ignored) {}
                         if (e instanceof ServerPlayerEntity sp) {
-                            try { ServerPlayNetworking.send(sp, new PlayDoomSfxPayload("pstart", sp.getX(), sp.getY(), sp.getZ(), 1.0f, 1.0f)); } catch (Throwable ignored) {}
+                                try { ServerPlayNetworking.send(sp, new PlayDoomSfxPayload("DSPSTART", sp.getX(), sp.getY(), sp.getZ(), 1.0f, 1.0f)); } catch (Throwable ignored) {}
                         }
                     }
                 } catch (Throwable ignored) {}
@@ -170,28 +206,25 @@ public class LiftPlatformEntity extends Entity {
 
         DebugLogger.debugThrottled("LiftPlatform", 20, () -> "y=" + getY() + " target=" + targetY);
 
-        // Recompute remaining after move and discard when close enough
+        // Recompute remaining after move and mark arrived so we remain alive a short time
         double newRemaining = targetY - this.getY();
         if (Math.abs(newRemaining) <= 1e-4) {
+            // Snap to exact target position and mark arrived.
             this.refreshPositionAndAngles(this.getX(), targetY, this.getZ(), this.getYaw(), this.getPitch());
-            DebugLogger.debug("LiftPlatform", () -> "reached target, discarding at y=" + this.getY());
-            // play arrival sound for nearby players
-            try {
-                ServerWorld sw = (ServerWorld) getEntityWorld();
-                for (ServerPlayerEntity p : sw.getPlayers()) {
-                    double dx = p.getX() - this.getX();
-                    double dz = p.getZ() - this.getZ();
-                    if (Math.hypot(dx, dz) <= 32.0) {
-                        try { ServerPlayNetworking.send(p, new PlayDoomSfxPayload("pstop", this.getX(), this.getY(), this.getZ(), 1.0f, 1.0f)); } catch (Throwable ignored) {}
-                    }
-                }
-            } catch (Throwable ignored) {}
-            this.discard();
+            if (!arrived) {
+                arrived = true;
+                arrivedTicks = 0;
+                DebugLogger.debug("LiftPlatform", () -> "arrived at target, will remain alive for a couple ticks y=" + this.getY());
+            }
         }
     }
 
     public boolean wasBlocked() {
         return blocked;
+    }
+
+    public boolean isArrived() {
+        return arrived;
     }
 
     // Some mappings expect an entity damage handler with ServerWorld/DamageSource signature.
@@ -207,9 +240,9 @@ public class LiftPlatformEntity extends Entity {
 
     private void updateBoundingBox() {
         this.setBoundingBox(new Box(
-            minX, this.getY(),
+            minX, this.getY() - 0.01,
             minZ,
-            maxX, this.getY() + 0.51,
+            maxX, this.getY() + 1.001,
             maxZ
         ));
     }
