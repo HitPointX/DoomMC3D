@@ -47,6 +47,8 @@ public final class DoomLiftSystem {
 
     private static final Map<RegistryKey<World>, Map<Integer, List<Lift>>> LIFTS_BY_TAG = new ConcurrentHashMap<>();
     private static final Map<UUID, Long> COOLDOWN_UNTIL_TICK = new HashMap<>();
+    // Per-world, per-tag last activation tick to debounce trigger group activations.
+    private static final Map<RegistryKey<World>, Map<Integer, Long>> TAG_LAST_ACTIVATED = new ConcurrentHashMap<>();
 
     private DoomLiftSystem() {}
 
@@ -93,9 +95,21 @@ public final class DoomLiftSystem {
         }
         COOLDOWN_UNTIL_TICK.put(activator.getUuid(), now + 10);
 
+        // Per-tag debounce to avoid repeated activations from the same trigger/group.
+        Map<Integer, Long> tagMap = TAG_LAST_ACTIVATED.computeIfAbsent(world.getRegistryKey(), k -> new HashMap<>());
+        long tagLast = tagMap.getOrDefault(tag, 0L);
+        if (now - tagLast < 20) {
+            DebugLogger.debugThrottled("DoomLiftSystem.activate.tagCooldown", 1000,
+                () -> "[DoomMC3D] Lift tag " + tag + " activation debounced (last=" + tagLast + ")");
+            return;
+        }
+
         // Prefer activating the lift(s) that actually contain the player's XZ block position.
         int playerBlockX = activator.getBlockX();
         int playerBlockZ = activator.getBlockZ();
+        BlockPos playerBlockPos = activator.getBlockPos();
+        Vec3d playerExact = new Vec3d(activator.getX(), activator.getY(), activator.getZ());
+        DebugLogger.debug("DoomLiftSystem.activate.player", () -> "[LiftDebug] playerBlockPos=" + playerBlockPos + " playerExact=" + playerExact + " playerBlockXZ=(" + playerBlockX + "," + playerBlockZ + ")");
         boolean anyMatched = false;
         for (Lift lift : lifts) {
             int minDx = Integer.MAX_VALUE, maxDx = Integer.MIN_VALUE;
@@ -107,9 +121,9 @@ public final class DoomLiftSystem {
                 maxDz = Math.max(maxDz, cell.dz);
             }
             int minX = lift.buildOrigin.getX() + minDx;
-            int maxX = lift.buildOrigin.getX() + maxDx;
+            int maxX = lift.buildOrigin.getX() + maxDx + 1; // make bbox inclusive-end like blocks
             int minZ = lift.buildOrigin.getZ() + minDz;
-            int maxZ = lift.buildOrigin.getZ() + maxDz;
+            int maxZ = lift.buildOrigin.getZ() + maxDz + 1;
 
             DebugLogger.debug("DoomLiftSystem.activate.debug", () -> "[LiftDebug] playerY=" + activator.getY()
                 + " baseY=" + lift.buildOrigin.getY()
@@ -117,6 +131,8 @@ public final class DoomLiftSystem {
                 + " topY=" + lift.topY
                 + " bottomY=" + lift.bottomY
                 + " bboxX=[" + minX + "," + maxX + "] bboxZ=[" + minZ + "," + maxZ + "]");
+
+            DebugLogger.debug("DoomLiftSystem.activate.debug2", () -> "[LiftDebug] candidateLift bboxX=[" + minX + "," + maxX + "] bboxZ=[" + minZ + "," + maxZ + "]");
 
             if (playerBlockX >= minX && playerBlockX <= maxX && playerBlockZ >= minZ && playerBlockZ <= maxZ) {
                 // Compute an anchor offset so the lift's currentY maps to the player's real floor world Y.
@@ -131,12 +147,18 @@ public final class DoomLiftSystem {
         }
 
         if (!anyMatched) {
-            // Fallback: activate all lifts for this tag (legacy behavior)
+            // Fallback: try to anchor each lift to the player's floor, then activate.
             for (Lift lift : lifts) {
-                DebugLogger.debug("DoomLiftSystem.activate.fallback", () -> "[LiftDebug] no matching lift for player; activating lift with default mapping: baseY=" + lift.buildOrigin.getY() + " currentY=" + lift.currentY);
+                double playerFloorWorldY = activator.getBlockPos().getY() + 1.0;
+                double currentWorldY = lift.worldY(lift.currentY);
+                double offset = playerFloorWorldY - currentWorldY;
+                lift.setAnchorOffset(offset);
+                DebugLogger.debug("DoomLiftSystem.activate.fallback", () -> "[LiftDebug] no matching lift for player; anchoring before activate: playerFloorWorldY=" + playerFloorWorldY + " baseY=" + lift.buildOrigin.getY() + " currentY=" + lift.currentY + " offset=" + offset);
                 lift.activate(world);
             }
         }
+        // record tag activation time
+        tagMap.put(tag, now);
     }
 
     private static void tickWorld(ServerWorld world) {
@@ -681,6 +703,15 @@ public final class DoomLiftSystem {
             int relativeBlockZ = worldBlockZ - buildOrigin.getZ();
             return (originBlockZ - relativeBlockZ) * (double) com.hitpo.doommc3d.DoomConstants.DOOM_TO_MC_SCALE
                 + com.hitpo.doommc3d.DoomConstants.DOOM_TO_MC_SCALE / 2.0;
+        }
+
+        // Public helpers for debugging/activation code outside the Lift class.
+        public double worldBlockToDoomX(int worldBlockX) {
+            return toDoomX(worldBlockX);
+        }
+
+        public double worldBlockToDoomZ(int worldBlockZ) {
+            return toDoomZ(worldBlockZ);
         }
 
         private double computeSurfaceTop(ServerWorld world, Entity e, int platformY) {
