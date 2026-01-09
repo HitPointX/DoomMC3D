@@ -93,13 +93,49 @@ public final class DoomLiftSystem {
         }
         COOLDOWN_UNTIL_TICK.put(activator.getUuid(), now + 10);
 
+        // Prefer activating the lift(s) that actually contain the player's XZ block position.
+        int playerBlockX = activator.getBlockX();
+        int playerBlockZ = activator.getBlockZ();
+        boolean anyMatched = false;
         for (Lift lift : lifts) {
+            int minDx = Integer.MAX_VALUE, maxDx = Integer.MIN_VALUE;
+            int minDz = Integer.MAX_VALUE, maxDz = Integer.MIN_VALUE;
+            for (FloorCell cell : lift.floor) {
+                minDx = Math.min(minDx, cell.dx);
+                maxDx = Math.max(maxDx, cell.dx);
+                minDz = Math.min(minDz, cell.dz);
+                maxDz = Math.max(maxDz, cell.dz);
+            }
+            int minX = lift.buildOrigin.getX() + minDx;
+            int maxX = lift.buildOrigin.getX() + maxDx;
+            int minZ = lift.buildOrigin.getZ() + minDz;
+            int maxZ = lift.buildOrigin.getZ() + maxDz;
+
             DebugLogger.debug("DoomLiftSystem.activate.debug", () -> "[LiftDebug] playerY=" + activator.getY()
                 + " baseY=" + lift.buildOrigin.getY()
                 + " currentY=" + lift.currentY
                 + " topY=" + lift.topY
-                + " bottomY=" + lift.bottomY);
-            lift.activate(world);
+                + " bottomY=" + lift.bottomY
+                + " bboxX=[" + minX + "," + maxX + "] bboxZ=[" + minZ + "," + maxZ + "]");
+
+            if (playerBlockX >= minX && playerBlockX <= maxX && playerBlockZ >= minZ && playerBlockZ <= maxZ) {
+                // Compute an anchor offset so the lift's currentY maps to the player's real floor world Y.
+                double playerFloorWorldY = activator.getBlockPos().getY() + 1.0;
+                double currentWorldY = lift.worldY(lift.currentY);
+                double offset = playerFloorWorldY - currentWorldY;
+                lift.setAnchorOffset(offset);
+                DebugLogger.debug("DoomLiftSystem.activate.anchor", () -> "[LiftDebug] anchoring lift to player: playerFloorWorldY=" + playerFloorWorldY + " currentWorldY=" + currentWorldY + " offset=" + offset);
+                lift.activate(world);
+                anyMatched = true;
+            }
+        }
+
+        if (!anyMatched) {
+            // Fallback: activate all lifts for this tag (legacy behavior)
+            for (Lift lift : lifts) {
+                DebugLogger.debug("DoomLiftSystem.activate.fallback", () -> "[LiftDebug] no matching lift for player; activating lift with default mapping: baseY=" + lift.buildOrigin.getY() + " currentY=" + lift.currentY);
+                lift.activate(world);
+            }
         }
     }
 
