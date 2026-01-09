@@ -138,6 +138,10 @@ public class LiftPlatformEntity extends Entity {
             }
         });
 
+        final double dbgDy = dy;
+        final int dbgRiders = riders.size();
+        DebugLogger.debugThrottled("LiftPlatform.tick.debug", 10, () -> "LiftPlatform tick: y=" + this.getY() + " target=" + this.targetY + " dy=" + dbgDy + " riders=" + dbgRiders + " arrived=" + this.arrived + " blocked=" + this.blocked);
+
         // Move platform (authoritative)
         try { this.setPos(this.getX(), this.getY() + dy, this.getZ()); } catch (Throwable ignored) {}
         updateBoundingBox();
@@ -243,7 +247,9 @@ public class LiftPlatformEntity extends Entity {
         // rider "feet near top" logic behaves predictably. Doom lift surface
         // at block layer Y corresponds to entity Y + 1.0.
         double surfaceY = this.getY() + 1.0;
-        double halfThickness = 0.05; // thin slice (10cm)
+        // Give the platform some thickness so player feet reliably intersect
+        // it. 1-block tall slab centered on surfaceTop provides robust capture.
+        double halfThickness = 0.5; // ~0.5m above/below surface top
         this.setBoundingBox(new Box(
             minX, surfaceY - halfThickness,
             minZ,

@@ -71,8 +71,14 @@ public class DoomMC3DClient implements ClientModInitializer {
 
         @Override
         public net.minecraft.client.render.entity.state.EntityRenderState createRenderState() {
-            // Rendering state not needed for invisible renderer.
-            return null;
+            // Provide a non-null render state to satisfy renderer pipeline.
+            return new net.minecraft.client.render.entity.state.EntityRenderState();
+        }
+
+        @Override
+        public void updateRenderState(T entity, net.minecraft.client.render.entity.state.EntityRenderState state, float tickDelta) {
+            super.updateRenderState(entity, state, tickDelta);
+            // no-op; state must be non-null to avoid client NPEs
         }
     }
 

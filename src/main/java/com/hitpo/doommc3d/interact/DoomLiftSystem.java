@@ -94,6 +94,11 @@ public final class DoomLiftSystem {
         COOLDOWN_UNTIL_TICK.put(activator.getUuid(), now + 10);
 
         for (Lift lift : lifts) {
+            DebugLogger.debug("DoomLiftSystem.activate.debug", () -> "[LiftDebug] playerY=" + activator.getY()
+                + " baseY=" + lift.buildOrigin.getY()
+                + " currentY=" + lift.currentY
+                + " topY=" + lift.topY
+                + " bottomY=" + lift.bottomY);
             lift.activate(world);
         }
     }
@@ -141,6 +146,8 @@ public final class DoomLiftSystem {
         private com.hitpo.doommc3d.entity.LiftPlatformEntity activePlatform = null;
         private boolean newFloorPlaced = false;
         private int platformArrivedTicks = 0;
+        // Align Doom floor 0 to the in-world walkable block. Tune if needed.
+        private static final int WORLD_FLOOR_OFFSET = 1;
 
         public Lift(
             List<FloorCell> floor,
@@ -446,6 +453,8 @@ public final class DoomLiftSystem {
             double startYWorld = worldY(fromY);
             double targetYWorld = worldY(toY);
 
+            DebugLogger.debug("DoomLiftSystem.spawn.debug", () -> "spawnLiftPlatform: state=" + state + " currentY=" + currentY + " fromY=" + fromY + " toY=" + toY + " activePlatform==null=" + (activePlatform==null));
+
             platform.initBounds(
                 minX, maxX,
                 minZ, maxZ,
@@ -464,7 +473,7 @@ public final class DoomLiftSystem {
 
         // Convert a Doom-relative floor Y to world Y using the build origin.
         private double worldY(int relY) {
-            return this.buildOrigin.getY() + relY;
+            return this.buildOrigin.getY() + WORLD_FLOOR_OFFSET + relY;
         }
 
         private void carryRiders(ServerWorld world, List<Entity> riders, int delta, int toY) {
