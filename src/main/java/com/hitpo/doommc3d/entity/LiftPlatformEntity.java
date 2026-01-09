@@ -239,10 +239,15 @@ public class LiftPlatformEntity extends Entity {
     }
 
     private void updateBoundingBox() {
+        // Represent the platform as a thin slab around the surface top so
+        // rider "feet near top" logic behaves predictably. Doom lift surface
+        // at block layer Y corresponds to entity Y + 1.0.
+        double surfaceY = this.getY() + 1.0;
+        double halfThickness = 0.05; // thin slice (10cm)
         this.setBoundingBox(new Box(
-            minX, this.getY() - 0.01,
+            minX, surfaceY - halfThickness,
             minZ,
-            maxX, this.getY() + 1.001,
+            maxX, surfaceY + halfThickness,
             maxZ
         ));
     }
