@@ -140,6 +140,7 @@ public final class DoomLiftSystem {
         // Active platform entity for this lift while moving; null when idle.
         private com.hitpo.doommc3d.entity.LiftPlatformEntity activePlatform = null;
         private boolean newFloorPlaced = false;
+        private int platformArrivedTicks = 0;
 
         public Lift(
             List<FloorCell> floor,
@@ -207,7 +208,14 @@ public final class DoomLiftSystem {
                         snapPlayersToSurface(world, ridersAfter, nextY);
                         newFloorPlaced = true;
                     }
-                    // keep waiting for the platform to be discarded (it will discard after its arrived ticks)
+
+                    // Instead of waiting for the platform to self-discard, give it a short
+                    // stability window, then explicitly discard so the Lift state machine
+                    // can finalize the step (clear old floor and advance currentY).
+                    platformArrivedTicks++;
+                    if (platformArrivedTicks >= 6) {
+                        try { activePlatform.discard(); } catch (Throwable ignored) {}
+                    }
                     return;
                 }
 
@@ -240,6 +248,7 @@ public final class DoomLiftSystem {
 
                     activePlatform = null;
                     newFloorPlaced = false;
+                    platformArrivedTicks = 0;
                 }
                 return;
             }
@@ -328,6 +337,7 @@ public final class DoomLiftSystem {
             activePlatform = spawnLiftPlatform(world, fromY, toY);
             blockedTicks = 0;
             newFloorPlaced = false;
+            platformArrivedTicks = 0;
 
             return true;
         }
@@ -433,20 +443,28 @@ public final class DoomLiftSystem {
 
             double speed = 1.0 / Math.max(1, ticksPerBlock);
 
+            double startYWorld = worldY(fromY);
+            double targetYWorld = worldY(toY);
+
             platform.initBounds(
                 minX, maxX,
                 minZ, maxZ,
-                fromY,
-                toY,
+                startYWorld,
+                targetYWorld,
                 speed
             );
 
-            DebugLogger.debug("DoomLiftSystem.spawn", () -> "[DoomLiftSystem] Spawn platform fromY=" + fromY + " toY=" + toY);
+            DebugLogger.debug("DoomLiftSystem.spawn", () -> "[DoomLiftSystem] Spawn platform fromY=" + fromY + " toY=" + toY + " worldStartY=" + startYWorld + " worldTargetY=" + targetYWorld);
             try {
                 world.spawnEntity(platform);
             } catch (Throwable ignored) {}
 
             return platform;
+        }
+
+        // Convert a Doom-relative floor Y to world Y using the build origin.
+        private double worldY(int relY) {
+            return this.buildOrigin.getY() + relY;
         }
 
         private void carryRiders(ServerWorld world, List<Entity> riders, int delta, int toY) {
@@ -560,10 +578,10 @@ public final class DoomLiftSystem {
             int minZ = buildOrigin.getZ() + minDz;
             int maxZ = buildOrigin.getZ() + maxDz + 1;
 
-            double platformTop = fromY + 1.0;
+            double platformTop = worldY(fromY) + 1.0;
 
             Box box = new Box(
-                minX - 0.6, fromY - 0.6, minZ - 0.6,
+                minX - 0.6, worldY(fromY) - 0.6, minZ - 0.6,
                 maxX + 0.6, platformTop + 1.0, maxZ + 0.6
             );
 
@@ -604,14 +622,15 @@ public final class DoomLiftSystem {
         private double computeSurfaceTop(ServerWorld world, Entity e, int platformY) {
             int bx = (int) Math.floor(e.getX());
             int bz = (int) Math.floor(e.getZ());
-            BlockPos below = new BlockPos(bx, platformY, bz);
+            int worldYInt = (int) Math.floor(worldY(platformY));
+            BlockPos below = new BlockPos(bx, worldYInt, bz);
             try {
                 var shape = world.getBlockState(below).getCollisionShape(world, below);
                 if (shape.isEmpty()) return platformY + 1.0;
                 double max = shape.getMax(Direction.Axis.Y);
                 return below.getY() + max;
             } catch (Throwable t) {
-                return platformY + 1.0;
+                return worldY(platformY) + 1.0;
             }
         }
 

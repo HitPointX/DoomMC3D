@@ -31,7 +31,7 @@ public class LiftPlatformEntity extends Entity {
     private int crushTicks = 0;
     private static final float CRUSH_DAMAGE = 6.0f; // tunable
     private boolean arrived = false;
-    private int arrivedTicks = 0;
+    private boolean stopSfxPlayed = false;
 
     private static final TrackedData<Float> TARGET_Y = DataTracker.registerData(LiftPlatformEntity.class, TrackedDataHandlerRegistry.FLOAT);
 
@@ -83,11 +83,12 @@ public class LiftPlatformEntity extends Entity {
         // Server-side: sync target Y to clients
         try { this.dataTracker.set(TARGET_Y, (float) this.targetY); } catch (Throwable ignored) {}
 
-        // If we've already arrived, remain alive for a couple ticks so riders can re-ground,
-        // then play arrival SFX and discard.
+        // If we've already arrived, play the stop SFX once and remain as a static
+        // collider for a short window. Do NOT immediately discard here; the
+        // lift system will finalize lifecycle when appropriate.
         if (!getEntityWorld().isClient() && arrived) {
-            arrivedTicks++;
-            if (arrivedTicks >= 2) {
+            if (!stopSfxPlayed) {
+                stopSfxPlayed = true;
                 try {
                     ServerWorld ssw = (ServerWorld) getEntityWorld();
                     for (ServerPlayerEntity p : ssw.getPlayers()) {
@@ -98,10 +99,9 @@ public class LiftPlatformEntity extends Entity {
                         }
                     }
                 } catch (Throwable ignored) {}
-                this.discard();
-                return;
             }
-            // keep alive while riders re-ground
+            // keep the platform alive and stationary while riders re-ground
+            return;
         }
 
         double remaining = targetY - this.getY();
@@ -213,7 +213,7 @@ public class LiftPlatformEntity extends Entity {
             this.refreshPositionAndAngles(this.getX(), targetY, this.getZ(), this.getYaw(), this.getPitch());
             if (!arrived) {
                 arrived = true;
-                arrivedTicks = 0;
+                stopSfxPlayed = false;
                 DebugLogger.debug("LiftPlatform", () -> "arrived at target, will remain alive for a couple ticks y=" + this.getY());
             }
         }
