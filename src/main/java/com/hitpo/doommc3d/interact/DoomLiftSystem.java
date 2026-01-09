@@ -182,6 +182,9 @@ public final class DoomLiftSystem {
         private com.hitpo.doommc3d.entity.LiftPlatformEntity activePlatform = null;
         private boolean newFloorPlaced = false;
         private int platformArrivedTicks = 0;
+        // Runtime anchor offset applied to the mapped world Y. Set during activation
+        // so a trigger's actual world floor aligns the lift's Doom-relative Y.
+        private double anchorOffset = 0.0;
         // Align Doom floor 0 to the in-world walkable block. Tune if needed.
         private static final int WORLD_FLOOR_OFFSET = 1;
 
@@ -222,6 +225,10 @@ public final class DoomLiftSystem {
             if (state != LiftState.IDLE) return;
             if (topY <= bottomY) return;
             state = LiftState.MOVING_DOWN;
+        }
+
+        public void setAnchorOffset(double offset) {
+            this.anchorOffset = offset;
         }
 
         
@@ -511,7 +518,7 @@ public final class DoomLiftSystem {
         private double worldY(int relY) {
             // Return the entity Y such that LiftPlatformEntity.surfaceTop == world block Y
             // The platform's surfaceTop is computed as entityY + 1.0, so subtract 1 here.
-            return this.buildOrigin.getY() + WORLD_FLOOR_OFFSET + relY - 1;
+            return this.buildOrigin.getY() + WORLD_FLOOR_OFFSET + relY - 1 + this.anchorOffset;
         }
 
         private void carryRiders(ServerWorld world, List<Entity> riders, int delta, int toY) {
