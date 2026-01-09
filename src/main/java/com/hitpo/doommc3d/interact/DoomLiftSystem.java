@@ -473,7 +473,9 @@ public final class DoomLiftSystem {
 
         // Convert a Doom-relative floor Y to world Y using the build origin.
         private double worldY(int relY) {
-            return this.buildOrigin.getY() + WORLD_FLOOR_OFFSET + relY;
+            // Return the entity Y such that LiftPlatformEntity.surfaceTop == world block Y
+            // The platform's surfaceTop is computed as entityY + 1.0, so subtract 1 here.
+            return this.buildOrigin.getY() + WORLD_FLOOR_OFFSET + relY - 1;
         }
 
         private void carryRiders(ServerWorld world, List<Entity> riders, int delta, int toY) {
@@ -589,9 +591,16 @@ public final class DoomLiftSystem {
 
             double platformTop = worldY(fromY) + 1.0;
 
+            // Widen the search box vertically and horizontally so players
+            // slightly off the exact mapped Y (due to mapping offsets or
+            // client-server differences) are still captured as riders.
+            double vertDown = 1.5; // allow players up to ~1.5m below surfaceTop
+            double vertUp = 1.0;
+            double horizPad = 0.9;
+
             Box box = new Box(
-                minX - 0.6, worldY(fromY) - 0.6, minZ - 0.6,
-                maxX + 0.6, platformTop + 1.0, maxZ + 0.6
+                minX - horizPad, platformTop - vertDown, minZ - horizPad,
+                maxX + horizPad, platformTop + vertUp, maxZ + horizPad
             );
 
             List<Entity> entities = world.getEntitiesByClass(Entity.class, box, e -> true);
@@ -600,12 +609,15 @@ public final class DoomLiftSystem {
             for (Entity e : entities) {
                 double feet = e.getBoundingBox().minY;
                 double eps = 1e-3;
-                boolean nearSurface = (feet <= platformTop + eps) && (feet >= platformTop - 0.75);
+                // Accept players whose feet are reasonably close to or slightly
+                // below the platform top; this deals with small mapping offsets.
+                boolean nearSurface = (feet <= platformTop + eps) && (feet >= platformTop - 1.5);
                 if (!nearSurface) continue;
 
                 double entityX = e.getX();
                 double entityZ = e.getZ();
-                if (entityX < minX - 0.05 || entityX > maxX + 0.05 || entityZ < minZ - 0.05 || entityZ > maxZ + 0.05) continue;
+                // Allow a small horizontal margin to be more forgiving for edge cases
+                if (entityX < minX - 0.2 || entityX > maxX + 0.2 || entityZ < minZ - 0.2 || entityZ > maxZ + 0.2) continue;
 
                 double doomX = toDoomX((int) Math.floor(entityX));
                 double doomZ = toDoomZ((int) Math.floor(entityZ));
